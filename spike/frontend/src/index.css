@@ -1,0 +1,55 @@
+:root {
+  --color-bg: #FFFFFF;
+  --color-surface: #F4F4F4;
+  --color-surface-strong: #EBEBEB;
+  --color-text: #121212;
+  --color-text-muted: #606060;
+  --color-border: #E4E4E4;
+  --color-border-strong: #BDBDBD;
+  --color-accent: #A74118;
+  --color-on-accent: #FFFFFF;
+  --color-danger: #B42318;
+  --color-danger-surface: #FFF1F0;
+  --color-success: #236447;
+  --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #101010;
+    --color-surface: #252525;
+    --color-surface-strong: #303030;
+    --color-text: #F2F2F2;
+    --color-text-muted: #B4B4B4;
+    --color-border: #3F3F3F;
+    --color-border-strong: #626262;
+    --color-accent: #FF986C;
+    --color-on-accent: #101010;
+    --color-danger: #FFB4AD;
+    --color-danger-surface: #3C2221;
+    --color-success: #A0DEBA;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  /* Hard rule from DESIGNS.md: No box-shadow */
+  box-shadow: none !important;
+}
+
+body {
+  font-family: var(--font-ui);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
