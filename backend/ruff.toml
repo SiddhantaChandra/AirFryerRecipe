@@ -1,0 +1,16 @@
+target-version = "py313"
+line-length = 100
+
+exclude = [
+    ".venv",
+    "migrations",
+]
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "C4"]
+ignore = [
+    "RUF012", # Mutable class attributes (common in Django models and migrations)
+]
+
+[lint.isort]
+combine-as-imports = true
