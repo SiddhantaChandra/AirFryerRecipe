@@ -1,0 +1,4 @@
+# Root convenience compose file delegating to infra/compose.dev.yml
+# Enables `docker compose up` directly from the repository root
+include:
+  - path: infra/compose.dev.yml

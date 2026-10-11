@@ -1,0 +1,79 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing and coverage
+.cache
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+
+# Node / Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+dist-ssr/
+*.local
+
+# Database and local state
+*.sqlite3
+*.db
+local_db_data/
+postgres_data/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Internal planning and specification documents (internal use only)
+AGENTS.md
+ARCHITECTURE.md
+DESIGNS.md
+PLAN.md
+PRD.md
+Tasks/
+FINDINGS.md
