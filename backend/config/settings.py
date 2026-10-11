@@ -47,10 +47,13 @@ INSTALLED_APPS = [
     "rest_framework",
     # Project apps
     "apps.accounts",
+    "apps.taxonomy",
+    "apps.catalog",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "common.middleware.PrivateAdminMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

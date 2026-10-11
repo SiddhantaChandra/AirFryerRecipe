@@ -1,0 +1,34 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block extrastyle %}{{ block.super }}
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=TikTok+Sans:wght@400;600;700&amp;family=Noto+Sans+Bengali:wght@400;600;700&amp;family=Noto+Sans+Devanagari:wght@400;600;700&amp;display=swap">
+<link rel="stylesheet" href="{% static 'catalog/preview.css' %}">
+{% endblock %}
+{% block content %}
+<div class="source-preview">
+  <form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">Preview source</button></form>
+  {% if duplicate %}
+    <p role="status">This source is already in the archive.</p>
+    {% if existing_url %}<p><a href="{{ existing_url }}">Open existing record</a></p>{% endif %}
+  {% endif %}
+  {% if source %}
+  <section aria-labelledby="source-heading">
+    <h2 id="source-heading">Original YouTube metadata</h2>
+    <p>{{ source.source_title|default:"Unknown source title" }}</p>
+    <p>Creator: {% if source.creator_url %}<a href="{{ source.creator_url }}" rel="noreferrer">{{ source.creator_name|default:"Unknown" }}</a>{% else %}{{ source.creator_name|default:"Unknown" }}{% endif %}</p>
+    <p>Video length: {% if source.duration_seconds != None %}{{ source.duration_seconds }} seconds{% else %}Unknown{% endif %}. Recipe cooking time is entered separately.</p>
+    {% if source.thumbnail_url %}<img class="source-thumbnail" src="{{ source.thumbnail_url }}" alt="Original source thumbnail">{% endif %}
+    {% if embed_url %}
+    <iframe class="source-player" src="{{ embed_url }}" title="Official YouTube source preview" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+    <p>If the player reports error 153, check the origin and Referer configuration. It does not mean the source was removed.</p>
+    {% elif source.availability == 'EMBED_BLOCKED' %}<p>Embedding is disabled by the creator.</p>
+    {% elif source.availability == 'UNAVAILABLE' %}<p>The source was not returned: it may be private or removed.</p>
+    {% else %}<p>Embeddability is unknown. Check the original source manually.</p>{% endif %}
+    <p><a href="{{ original_url }}">View original on YouTube</a></p>
+    <p>Duration and metadata do not prove that this is a Short or an air-fryer recipe. Review both manually.</p>
+    {% if add_url %}<a class="draft-link" href="{{ add_url }}">Enter recipe details and save draft</a>
+    <p>Saving fetches fresh server-side metadata; this preview is not retained.</p>{% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
