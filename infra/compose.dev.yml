@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-airfryer_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.web
+    restart: unless-stopped
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-insecure-secret-key-change-in-production}
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,web
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-airfryer_db}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+    volumes:
+      - ../backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
