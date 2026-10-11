@@ -1,0 +1,22 @@
+@import "tailwindcss";
+@import "./styles/tokens.css";
+
+@theme {
+  --color-app-bg: var(--color-bg);
+  --color-app-surface: var(--color-surface);
+  --color-app-surface-strong: var(--color-surface-strong);
+  --color-app-text: var(--color-text);
+  --color-app-text-muted: var(--color-text-muted);
+  --color-app-text-subtle: var(--color-text-subtle);
+  --color-app-border: var(--color-border);
+  --color-app-border-strong: var(--color-border-strong);
+  --color-app-accent: var(--color-accent);
+  --color-app-on-accent: var(--color-on-accent);
+  --color-app-hover: var(--color-hover);
+  --color-app-pressed: var(--color-pressed);
+  --color-app-danger: var(--color-danger);
+  --color-app-danger-surface: var(--color-danger-surface);
+  --color-app-success: var(--color-success);
+  --color-app-success-surface: var(--color-success-surface);
+  --color-app-scrim: var(--color-scrim);
+}

@@ -1,0 +1,64 @@
+/* Design tokens authoritative specification (DESIGNS.md §3.1, §3.2, §3.3) */
+
+:root {
+  --color-bg: #FFFFFF;
+  --color-surface: #F4F4F4;
+  --color-surface-strong: #EBEBEB;
+  --color-text: #121212;
+  --color-text-muted: #606060;
+  --color-text-subtle: #626262;
+  --color-border: #E4E4E4;
+  --color-border-strong: #BDBDBD;
+  --color-accent: #A74118;
+  --color-on-accent: #FFFFFF;
+  --color-hover: #ECECEC;
+  --color-pressed: #DFDFDF;
+  --color-danger: #B42318;
+  --color-danger-surface: #FFF1F0;
+  --color-success: #236447;
+  --color-success-surface: #E9F6EE;
+  --color-scrim: rgba(0, 0, 0, 0.56);
+
+  --font-ui: "TikTok Sans", "Noto Sans Devanagari", "Noto Sans Bengali", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --color-bg: #101010;
+  --color-surface: #252525;
+  --color-surface-strong: #303030;
+  --color-text: #F2F2F2;
+  --color-text-muted: #B4B4B4;
+  --color-text-subtle: #A8A8A8;
+  --color-border: #3F3F3F;
+  --color-border-strong: #626262;
+  --color-accent: #FF986C;
+  --color-on-accent: #101010;
+  --color-hover: #333333;
+  --color-pressed: #3D3D3D;
+  --color-danger: #FFB4AD;
+  --color-danger-surface: #3C2221;
+  --color-success: #A0DEBA;
+  --color-success-surface: #1B3328;
+  --color-scrim: rgba(0, 0, 0, 0.68);
+  color-scheme: dark;
+}
+
+/* Hard rule: No box-shadows anywhere (DESIGNS.md §2, §3.3) */
+*, *::before, *::after {
+  box-shadow: none !important;
+}
+
+body {
+  font-family: var(--font-ui);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Global focus style: visible outline plus offset in both themes */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
