@@ -34,6 +34,8 @@ def normalize_youtube_url(url: str) -> str:
         raise ValueError("URL must be a non-empty string.")
 
     raw_url = url.strip()
+    if not raw_url or any(c.isspace() or ord(c) < 32 for c in raw_url) or "\\" in raw_url:
+        raise ValueError("URL contains invalid whitespace or separators.")
 
     if raw_url.startswith("//"):
         raw_url = "https:" + raw_url
@@ -65,7 +67,8 @@ def normalize_youtube_url(url: str) -> str:
         raise ValueError("URLs containing credentials are not permitted.")
 
     try:
-        if parsed.port and parsed.port not in {80, 443}:
+        expected_port = 443 if parsed.scheme.lower() == "https" else 80
+        if parsed.port is not None and parsed.port != expected_port:
             raise ValueError("Non-standard ports are not allowed.")
     except ValueError as exc:
         if "Non-standard ports" in str(exc):
@@ -73,29 +76,33 @@ def normalize_youtube_url(url: str) -> str:
         raise ValueError(f"Invalid port in URL: {exc}") from exc
 
     video_id: str | None = None
+    query_params = parse_qs(parsed.query, keep_blank_values=True)
+    if any(len(values) != 1 or not values[0] for values in query_params.values()):
+        raise ValueError("Blank or repeated query parameters are not permitted.")
+    if parsed.params:
+        raise ValueError("URL path parameters are not supported.")
 
     if hostname in ALLOWED_SHORT_HOSTS:
-        path_parts = [p for p in parsed.path.split("/") if p]
-        if not path_parts:
+        match = re.fullmatch(r"/([a-zA-Z0-9_-]{11})/?", parsed.path)
+        if not match:
             raise ValueError("Missing video ID in youtu.be URL.")
-        candidate_id = path_parts[0]
+        candidate_id = match.group(1)
         if not YOUTUBE_VIDEO_ID_REGEX.match(candidate_id):
             raise ValueError(f"Invalid YouTube video ID format: {candidate_id}")
         video_id = candidate_id
 
     elif hostname in ALLOWED_YOUTUBE_HOSTS:
         path = parsed.path.rstrip("/")
-        if path.startswith("/shorts"):
-            parts = [p for p in path.split("/") if p]
-            if len(parts) >= 2:
-                candidate_id = parts[1]
+        if path.startswith("/shorts/"):
+            match = re.fullmatch(r"/shorts/([a-zA-Z0-9_-]{11})/?", parsed.path)
+            if match:
+                candidate_id = match.group(1)
                 if not YOUTUBE_VIDEO_ID_REGEX.match(candidate_id):
                     raise ValueError(f"Invalid YouTube video ID format: {candidate_id}")
                 video_id = candidate_id
             else:
                 raise ValueError("Missing video ID in shorts URL.")
-        elif path == "/watch":
-            query_params = parse_qs(parsed.query, keep_blank_values=False)
+        elif parsed.path == "/watch":
             v_params = query_params.get("v")
             if v_params and len(v_params) == 1:
                 candidate_id = v_params[0]
@@ -111,6 +118,8 @@ def normalize_youtube_url(url: str) -> str:
 
     if not video_id or not YOUTUBE_VIDEO_ID_REGEX.match(video_id):
         raise ValueError("Could not extract a valid 11-character YouTube video ID.")
+    if parsed.path != "/watch" and "v" in query_params:
+        raise ValueError("Video identity query parameter is only supported on watch URLs.")
 
     return video_id
 
@@ -119,7 +128,7 @@ def parse_iso8601_duration(duration_str: str | None) -> int | None:
     if not duration_str or not isinstance(duration_str, str):
         return None
     match = ISO_DURATION_REGEX.match(duration_str)
-    if not match:
+    if not match or not any(value is not None for value in match.groupdict().values()):
         return None
     parts = match.groupdict()
     hours = int(parts.get("hours") or 0)
@@ -129,15 +138,31 @@ def parse_iso8601_duration(duration_str: str | None) -> int | None:
 
 
 class YouTubeAPIError(Exception):
-    def __init__(self, message: str, status_code: int | None = None, response_data: Any = None):
+    def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
         self.status_code = status_code
-        self.response_data = response_data
 
 
 def fetch_youtube_metadata(
     video_id: str, api_key: str | None = None, client: httpx.Client | None = None
 ) -> dict[str, Any]:
+    return fetch_youtube_metadata_batch([video_id], api_key=api_key, client=client)[video_id]
+
+
+def fetch_youtube_metadata_batch(
+    video_ids: list[str], api_key: str | None = None, client: httpx.Client | None = None
+) -> dict[str, dict[str, Any]]:
+    if (
+        not video_ids
+        or len(video_ids) > 50
+        or any(
+            not isinstance(video_id, str) or not YOUTUBE_VIDEO_ID_REGEX.fullmatch(video_id)
+            for video_id in video_ids
+        )
+    ):
+        raise ValueError("Supply between 1 and 50 valid YouTube video IDs.")
+    if len(set(video_ids)) != len(video_ids):
+        raise ValueError("Duplicate video IDs in request.")
     key = (
         api_key
         or getattr(settings, "YOUTUBE_API_KEY", "")
@@ -148,7 +173,7 @@ def fetch_youtube_metadata(
 
     params = {
         "part": "snippet,contentDetails,status",
-        "id": video_id,
+        "id": ",".join(video_ids),
         "key": key,
     }
 
@@ -159,35 +184,50 @@ def fetch_youtube_metadata(
 
     try:
         response = client.get(YOUTUBE_API_URL, params=params)
-    except httpx.RequestError as exc:
-        raise YouTubeAPIError(f"Network error contacting YouTube Data API: {exc}") from exc
+    except httpx.RequestError:
+        # Request exceptions can contain the API key in their URL.
+        raise YouTubeAPIError("Network error contacting YouTube Data API.") from None
     finally:
         if should_close:
             client.close()
 
     if response.status_code != 200:
         error_msg = f"YouTube API returned HTTP {response.status_code}"
-        try:
-            err_json = response.json()
-            if "error" in err_json and "message" in err_json["error"]:
-                error_msg = f"{error_msg}: {err_json['error']['message']}"
-        except Exception:
-            err_json = response.text
-        raise YouTubeAPIError(error_msg, status_code=response.status_code, response_data=err_json)
+        raise YouTubeAPIError(error_msg, status_code=response.status_code)
 
-    data = response.json()
-    items = data.get("items", [])
-    if not items:
-        return {
+    try:
+        data = response.json()
+    except ValueError:
+        raise YouTubeAPIError("YouTube API returned invalid JSON.") from None
+    if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+        raise YouTubeAPIError("YouTube API returned an invalid video list.")
+    items = data["items"]
+    results = {
+        video_id: {
             "found": False,
             "video_id": video_id,
             "reason": "Video not found, private, or removed.",
         }
+        for video_id in video_ids
+    }
+    seen = set()
+    for item in items:
+        if not isinstance(item, dict):
+            raise YouTubeAPIError("YouTube API returned an unexpected video identity.")
+        video_id = item.get("id")
+        if not isinstance(video_id, str) or video_id not in results or video_id in seen:
+            raise YouTubeAPIError("YouTube API returned an unexpected video identity.")
+        seen.add(video_id)
+        results[video_id] = parse_video_item(item, video_id)
+    return results
 
-    item = items[0]
+
+def parse_video_item(item, video_id):
     snippet = item.get("snippet", {})
     content_details = item.get("contentDetails", {})
     status = item.get("status", {})
+    if not all(isinstance(part, dict) for part in (snippet, content_details, status)):
+        raise YouTubeAPIError("YouTube API returned invalid metadata fields.")
 
     duration_iso = content_details.get("duration")
     duration_seconds = parse_iso8601_duration(duration_iso)
@@ -204,6 +244,8 @@ def fetch_youtube_metadata(
         "duration_seconds": duration_seconds,
         "thumbnails": snippet.get("thumbnails", {}),
         "privacy_status": status.get("privacyStatus", "unknown"),
-        "embeddable": status.get("embeddable", False),
+        "embeddable": (
+            status.get("embeddable") if isinstance(status.get("embeddable"), bool) else None
+        ),
         "upload_status": status.get("uploadStatus", "unknown"),
     }
