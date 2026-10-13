@@ -1,16 +1,34 @@
-# React + Vite
+# Discovery and watch frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React/JavaScript with Vite, TanStack Query and the existing semantic theme tokens.
+Discovery is a finite newest-first feed. Django delivers watch HTML; React mounts
+the official player, Share/More and publication-rechecked navigation separately.
 
-Currently, two official plugins are available:
+From this directory:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```powershell
+npm ci
+bun run dev
+bun run test
+bun run lint
+bun run build
+bun run test:e2e
+```
 
-## React Compiler
+The npm lockfile remains the CI installation contract. Development uses the local
+Django stack. Built preview instructions are in [infra/PHASE3-LOCAL.md](../infra/PHASE3-LOCAL.md).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Playwright defaults to installed Chrome and the loopback Caddy preview at
+`http://localhost:8090`. `E2E_BROWSER_CHANNEL=msedge` selects installed Edge.
+Discovery tests use labeled catalog mocks. For real Django watch documents, set
+`E2E_RECIPE_SLUG` to a disposable published local QA recipe whose name starts with
+`Local browser QA:`; these tests otherwise skip. Player failures and geometry use
+labeled mocks and do not establish real playback. Browser evidence is ignored.
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+`E2E_BASE_URL=http://localhost:5173` and `E2E_MODE=development` select Vite with
+Django configured for its development entry. Built mode omits `E2E_MODE`.
+The optional live diagnostic requires `E2E_LIVE_PLAYER=1` and an API-confirmed
+`E2E_YOUTUBE_ID`; it leaves source data unchanged. Admin evidence tests additionally
+require `E2E_ADMIN_MOCKS=1` and sanitized local HTML under
+`backend/.cache/admin-browser/`. Generate it only from rolled-back test actors and
+sessions, and never commit it. Browser checks do not establish staging or remote CI.

@@ -28,6 +28,7 @@ export default defineConfig({
   },
   build: { manifest: true, rollupOptions: { input: { app: 'index.html', watch: 'src/main.jsx' } } },
   test: {
+    include: ['src/**/*.test.{js,jsx}'],
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
