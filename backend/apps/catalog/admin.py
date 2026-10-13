@@ -194,7 +194,7 @@ class VideoAdmin(admin.ModelAdmin):
                     origin = f"{request.scheme}://{request.get_host()}"
                     context["embed_url"] = (
                         f"https://www.youtube-nocookie.com/embed/{result['video_id']}?"
-                        + urlencode({"origin": origin, "playsinline": 1})
+                        + urlencode({"origin": origin, "playsinline": 1, "enablejsapi": 1})
                     )
             except (ValueError, YouTubeAPIError, ValidationError) as exc:
                 form.add_error("source_url", str(exc))

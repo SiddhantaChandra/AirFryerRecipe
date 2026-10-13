@@ -650,3 +650,325 @@ def test_concurrent_refresh_responses_leave_latest_snapshot(video, metadata):
         list(executor.map(store, range(2)))
     video.refresh_from_db()
     assert video.source_title == "Latest" and video.recipe_name == "Crispy potatoes"
+
+
+@pytest.mark.parametrize(
+    ("provider_result", "expected"),
+    [
+        ({"found": False, "video_id": VIDEO_ID}, Video.Availability.UNAVAILABLE),
+        (
+            {"found": True, "video_id": VIDEO_ID, "embeddable": False},
+            Video.Availability.EMBED_BLOCKED,
+        ),
+    ],
+)
+def test_refresh_persists_distinct_unavailable_and_embed_blocked_states(
+    video, metadata, provider_result, expected
+):
+    source_fixture(video, metadata)
+    with patch("apps.catalog.services.fetch_youtube_metadata", return_value=provider_result):
+        assert refresh_video(video.pk) is True
+    video.refresh_from_db()
+    assert video.availability == expected
+    assert read_source_metadata(video)["availability"] == expected
+    assert video.recipe_name == "Crispy potatoes"
+    assert video.status == Video.Status.DRAFT
+
+
+def test_invalid_bulk_publish_and_refresh_report_errors_without_mutation(
+    client, admin_user, video
+):
+    client.force_login(admin_user)
+    url = reverse("admin:catalog_video_changelist")
+    selection = {"_selected_action": str(video.pk), "index": "0"}
+    response = client.post(url, {**selection, "action": "review_and_publish"}, follow=True)
+    assert response.status_code == 200
+    assert "Confirm dietary review" in response.content.decode()
+    video.refresh_from_db()
+    assert video.status == Video.Status.DRAFT
+    with patch(
+        "apps.catalog.services.fetch_youtube_metadata",
+        side_effect=YouTubeAPIError("provider unavailable", 503),
+    ):
+        response = client.post(url, {**selection, "action": "refresh_selected"}, follow=True)
+    assert response.status_code == 200
+    assert "Source refresh failed" in response.content.decode()
+    video.refresh_from_db()
+    assert video.availability == Video.Availability.UNKNOWN
+    assert video.status == Video.Status.DRAFT
+
+
+def test_inactive_staff_cannot_use_admin_preview_or_actions(client, staff_user, video):
+    staff_user = grant(
+        staff_user, "add_video", "change_video", "publish_video", "hide_video", "refresh_video"
+    )
+    staff_user.is_active = False
+    staff_user.save(update_fields=("is_active",))
+    client.force_login(staff_user)
+    preview = client.post(reverse("admin:catalog_video_preview"), {"source_url": SOURCE_URL})
+    assert preview.status_code in (302, 403)
+    action = client.post(
+        reverse("admin:catalog_video_changelist"),
+        {"action": "hide_selected", "_selected_action": str(video.pk)},
+    )
+    assert action.status_code in (302, 403)
+    video.refresh_from_db()
+    assert video.status == Video.Status.DRAFT
+
+
+def test_duplicate_insert_rolls_back_taxonomy_relations(video):
+    ingredient = Ingredient.objects.create(name="Potato")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        candidate = Video.objects.create(
+            external_id="jNQXAC9IVRw", recipe_name="Temporary recipe"
+        )
+        VideoIngredient.objects.create(video=candidate, ingredient=ingredient)
+        Video.objects.filter(pk=candidate.pk).update(external_id=VIDEO_ID)
+    assert not Video.objects.filter(external_id="jNQXAC9IVRw").exists()
+    assert not VideoIngredient.objects.filter(ingredient=ingredient).exists()
+    assert Video.objects.filter(external_id=VIDEO_ID).count() == 1
+
+
+@pytest.mark.parametrize("action", ["review_and_publish", "hide_selected", "refresh_selected"])
+def test_staff_without_action_permission_cannot_run_bulk_action(
+    client, staff_user, video, action
+):
+    staff_user = grant(staff_user, "change_video")
+    client.force_login(staff_user)
+    response = client.post(
+        reverse("admin:catalog_video_changelist"),
+        {"action": action, "_selected_action": str(video.pk)},
+    )
+    assert response.status_code == 200
+    assert response.context["action_form"] is None
+    video.refresh_from_db()
+    assert video.status == Video.Status.DRAFT
+
+
+@pytest.mark.parametrize("role", ["anonymous", "non_staff", "inactive", "unprivileged_staff"])
+def test_admin_mutation_matrix_denies_unapproved_roles(
+    client, admin_user, video, role
+):
+    if role != "anonymous":
+        user = get_user_model().objects.create_user(
+            f"{role}@example.invalid", is_staff=role != "non_staff"
+        )
+        if role == "inactive":
+            user.is_active = False
+            user.save(update_fields=("is_active",))
+        client.force_login(user)
+    paths = (
+        (reverse("admin:catalog_video_preview"), {"source_url": SOURCE_URL}),
+        (reverse("admin:catalog_video_add"), draft_post()),
+        (reverse("admin:catalog_video_change", args=(video.pk,)), draft_post()),
+        (reverse("admin:taxonomy_ingredient_add"), {"name": "Potato"}),
+        (reverse("admin:taxonomy_cuisine_add"), {"name": "Indian"}),
+        (reverse("admin:taxonomy_mealtype_add"), {"name": "Snack"}),
+    )
+    with patch("apps.catalog.services.fetch_youtube_metadata") as fetch:
+        for path, payload in paths:
+            response = client.post(path, payload)
+            assert response.status_code in (302, 403)
+            assert "no-store" in response.headers["Cache-Control"]
+        for action in ("review_and_publish", "hide_selected", "refresh_selected"):
+            response = client.post(
+                reverse("admin:catalog_video_changelist"),
+                {"action": action, "_selected_action": str(video.pk)},
+            )
+            assert response.status_code in (302, 403)
+            assert "no-store" in response.headers["Cache-Control"]
+    fetch.assert_not_called()
+    video.refresh_from_db()
+    assert video.status == Video.Status.DRAFT
+    assert not Ingredient.objects.exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_refresh_overlapping_expiry_and_editorial_edit_preserves_both(video, metadata):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    from django.db import close_old_connections
+
+    source_fixture(video, metadata, 31)
+    fetched = Event()
+    release = Event()
+
+    def delayed_fetch(_video_id):
+        fetched.set()
+        assert release.wait(timeout=5)
+        return {**metadata, "title": "Fresh source"}
+
+    def refresh_in_other_connection():
+        close_old_connections()
+        try:
+            with patch("apps.catalog.services.fetch_youtube_metadata", side_effect=delayed_fetch):
+                return refresh_video(video.pk)
+        finally:
+            close_old_connections()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(refresh_in_other_connection)
+        assert fetched.wait(timeout=5)
+        try:
+            Video.objects.filter(pk=video.pk).update(recipe_name="Edited while fetching")
+            assert expiry_due() == 1
+        finally:
+            release.set()
+        assert future.result(timeout=5) is True
+    video.refresh_from_db()
+    assert video.recipe_name == "Edited while fetching"
+    assert video.source_title == "Fresh source"
+    assert video.availability == Video.Availability.OK
+
+
+def test_csrf_blocks_all_admin_mutation_paths(admin_user, video):
+    from django.test import Client
+
+    strict = Client(enforce_csrf_checks=True)
+    strict.force_login(admin_user)
+    paths = (
+        (reverse("admin:catalog_video_preview"), {"source_url": SOURCE_URL}),
+        (reverse("admin:catalog_video_add"), draft_post()),
+        (reverse("admin:catalog_video_change", args=(video.pk,)), draft_post()),
+        (reverse("admin:taxonomy_ingredient_add"), {"name": "Potato"}),
+        (reverse("admin:taxonomy_cuisine_add"), {"name": "Indian"}),
+        (reverse("admin:taxonomy_mealtype_add"), {"name": "Snack"}),
+    )
+    with patch("apps.catalog.services.fetch_youtube_metadata") as fetch:
+        for path, payload in paths:
+            response = strict.post(path, payload)
+            assert response.status_code == 403
+            assert "no-store" in response.headers["Cache-Control"]
+        for action in ("review_and_publish", "hide_selected", "refresh_selected"):
+            response = strict.post(
+                reverse("admin:catalog_video_changelist"),
+                {"action": action, "_selected_action": str(video.pk)},
+            )
+            assert response.status_code == 403
+            assert "no-store" in response.headers["Cache-Control"]
+    fetch.assert_not_called()
+    video.refresh_from_db()
+    assert video.status == Video.Status.DRAFT
+    assert not Ingredient.objects.exists()
+
+
+def test_mocked_admin_curation_round_trip_preserves_slug_and_editorial_data(
+    client, admin_user, metadata
+):
+    ingredient = Ingredient.objects.create(name="Potato")
+    cuisine = Cuisine.objects.create(name="Indian")
+    meal_type = MealType.objects.create(name="Snack")
+    client.force_login(admin_user)
+    payload = {
+        **draft_post(),
+        "cuisines": [str(cuisine.pk)],
+        "meal_types": [str(meal_type.pk)],
+        "ingredient_links-0-ingredient": str(ingredient.pk),
+        "ingredient_links-0-is_primary": "on",
+    }
+    with patch("apps.catalog.services.fetch_youtube_metadata", return_value=metadata):
+        response = client.post(reverse("admin:catalog_video_add"), payload)
+    assert response.status_code == 302
+    curated = Video.objects.get(external_id=VIDEO_ID)
+    slug = curated.slug
+    assert curated.status == Video.Status.DRAFT
+    assert curated.ingredients.filter(pk=ingredient.pk).exists()
+    assert curated.cuisines.filter(pk=cuisine.pk).exists()
+    assert curated.meal_types.filter(pk=meal_type.pk).exists()
+
+    list_url = reverse("admin:catalog_video_changelist")
+    selection = {"_selected_action": str(curated.pk), "index": "0"}
+    assert client.post(list_url, {**selection, "action": "review_and_publish"}).status_code == 302
+    curated.refresh_from_db()
+    assert curated.status == Video.Status.PUBLISHED
+    assert curated.reviewed_by == admin_user
+
+    link = VideoIngredient.objects.get(video=curated, ingredient=ingredient)
+    changed = {
+        **payload,
+        "recipe_name": "Renamed curated potatoes",
+        "ingredient_links-INITIAL_FORMS": "1",
+        "ingredient_links-0-id": str(link.pk),
+    }
+    change_response = client.post(
+        reverse("admin:catalog_video_change", args=(curated.pk,)), changed
+    )
+    assert change_response.status_code == 302
+    curated.refresh_from_db()
+    assert curated.slug == slug
+    assert curated.status == Video.Status.DRAFT
+    assert curated.recipe_name == "Renamed curated potatoes"
+    assert client.post(list_url, {**selection, "action": "review_and_publish"}).status_code == 302
+    assert client.post(list_url, {**selection, "action": "hide_selected"}).status_code == 302
+    curated.refresh_from_db()
+    assert curated.status == Video.Status.HIDDEN
+    assert client.post(list_url, {**selection, "action": "review_and_publish"}).status_code == 302
+    with patch("apps.catalog.services.fetch_youtube_metadata", return_value=metadata):
+        assert client.post(list_url, {**selection, "action": "refresh_selected"}).status_code == 302
+    curated.refresh_from_db()
+    assert curated.status == Video.Status.PUBLISHED
+    assert curated.slug == slug
+    assert curated.recipe_name == "Renamed curated potatoes"
+    assert curated.ingredients.filter(pk=ingredient.pk).exists()
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ({"found": False, "video_id": VIDEO_ID}, "The source was not returned"),
+        ({"found": True, "video_id": VIDEO_ID, "embeddable": False}, "Embedding is disabled"),
+    ],
+)
+def test_admin_preview_explains_confirmed_source_failure(
+    client, admin_user, source, expected
+):
+    client.force_login(admin_user)
+    with patch("apps.catalog.services.fetch_youtube_metadata", return_value=source):
+        response = client.post(reverse("admin:catalog_video_preview"), {"source_url": SOURCE_URL})
+    assert response.status_code == 200
+    assert expected in response.content.decode()
+    assert not Video.objects.exists()
+
+
+def test_admin_preview_handles_invalid_url_and_temporary_provider_failure(client, admin_user):
+    client.force_login(admin_user)
+    url = reverse("admin:catalog_video_preview")
+    with patch("apps.catalog.services.fetch_youtube_metadata") as fetch:
+        invalid = client.post(url, {"source_url": "https://example.invalid/video"})
+    assert invalid.status_code == 200
+    assert "source_url" in invalid.context["form"].errors
+    fetch.assert_not_called()
+    with patch(
+        "apps.catalog.services.fetch_youtube_metadata",
+        side_effect=YouTubeAPIError("Temporary provider failure", 503),
+    ):
+        temporary = client.post(url, {"source_url": SOURCE_URL})
+    assert temporary.status_code == 200
+    assert "Temporary provider failure" in temporary.content.decode()
+    assert not Video.objects.exists()
+
+
+def test_admin_uniqueness_race_redirects_without_partial_relations(
+    client, admin_user, video, metadata
+):
+    ingredient = Ingredient.objects.create(name="Potato")
+    client.force_login(admin_user)
+    payload = {
+        **draft_post(),
+        "ingredient_links-0-ingredient": str(ingredient.pk),
+        "ingredient_links-0-is_primary": "on",
+    }
+    # Simulate another curator committing this identity after the form's duplicate check.
+    stale_preview = {
+        "existing": None,
+        "video_id": VIDEO_ID,
+        "metadata": metadata,
+        "fetched_at": timezone.now(),
+    }
+    with patch("apps.catalog.forms.preview_source", return_value=stale_preview):
+        response = client.post(reverse("admin:catalog_video_add"), payload)
+    assert response.status_code == 302
+    assert response.url == reverse("admin:catalog_video_change", args=(video.pk,))
+    assert Video.objects.filter(external_id=VIDEO_ID).count() == 1
+    assert not VideoIngredient.objects.filter(ingredient=ingredient).exists()

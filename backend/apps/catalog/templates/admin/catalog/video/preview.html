@@ -19,7 +19,10 @@
     <p>Video length: {% if source.duration_seconds != None %}{{ source.duration_seconds }} seconds{% else %}Unknown{% endif %}. Recipe cooking time is entered separately.</p>
     {% if source.thumbnail_url %}<img class="source-thumbnail" src="{{ source.thumbnail_url }}" alt="Original source thumbnail">{% endif %}
     {% if embed_url %}
-    <iframe class="source-player" src="{{ embed_url }}" title="Official YouTube source preview" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+    <iframe id="source-player" class="source-player" src="{{ embed_url }}" title="Official YouTube source preview" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+    <p id="source-player-status" role="status" aria-live="polite">Use the official player controls to play.</p>
+    <button id="source-player-retry" type="button" hidden>Retry player</button>
+    <script src="{% static 'catalog/preview-player.js' %}" defer></script>
     <p>If the player reports error 153, check the origin and Referer configuration. It does not mean the source was removed.</p>
     {% elif source.availability == 'EMBED_BLOCKED' %}<p>Embedding is disabled by the creator.</p>
     {% elif source.availability == 'UNAVAILABLE' %}<p>The source was not returned: it may be private or removed.</p>
