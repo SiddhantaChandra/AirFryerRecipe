@@ -54,6 +54,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "common.middleware.PrivateAdminMiddleware",
+    "common.middleware.PublicReadErrorMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -127,3 +128,9 @@ REST_FRAMEWORK = {
 
 # YouTube Data API Key
 YOUTUBE_API_KEY = env("YOUTUBE_API_KEY")
+
+# Explicitly opt into the Vite development server; built mode uses its manifest.
+VITE_DEV_SERVER = env("VITE_DEV_SERVER", default="")
+VITE_MANIFEST_PATH = Path(
+    env("VITE_MANIFEST_PATH", default=str(REPO_ROOT / "frontend/dist/.vite/manifest.json"))
+)

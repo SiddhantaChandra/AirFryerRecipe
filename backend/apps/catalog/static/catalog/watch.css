@@ -1,0 +1,13 @@
+/* The no-JavaScript watch document remains readable before Vite loads. */
+body { margin: 0; background: #fff; color: #121212; font: 1rem/1.5 "TikTok Sans", "Noto Sans Devanagari", "Noto Sans Bengali", system-ui, sans-serif; }
+[data-theme="dark"] body { background: #101010; color: #f2f2f2; }
+a { color: inherit; }
+.site-header, .site-footer { padding: 1.25rem; border-block-end: 1px solid #626262; }
+.site-footer { border-block-start: 1px solid #626262; border-block-end: 0; }
+.watch-page { max-width: 70rem; margin: auto; padding: 1.5rem; }
+.recipe-details { max-width: 70ch; margin: 2rem auto; overflow-wrap: anywhere; }
+h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); line-height: 1.2; }
+h2 { font-size: 1.25rem; }
+:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.skip-link { position: absolute; inset-inline-start: 1rem; top: -6rem; }
+.skip-link:focus { top: 1rem; background: inherit; padding: .75rem; }

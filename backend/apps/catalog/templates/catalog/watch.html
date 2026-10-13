@@ -1,0 +1,56 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>{{ video.recipe_name }} · Air Fryer Shorts</title>
+  <meta name="description" content="{{ video.recipe_summary|truncatechars:200 }}">
+  <link rel="canonical" href="{{ canonical }}">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ video.recipe_name }}">
+  <meta property="og:description" content="{{ video.recipe_summary|truncatechars:200 }}">
+  <meta property="og:url" content="{{ canonical }}">
+  <meta property="og:site_name" content="Air Fryer Shorts">
+  <meta name="twitter:card" content="{% if video.thumbnail_url %}summary_large_image{% else %}summary{% endif %}">
+  <meta name="twitter:title" content="{{ video.recipe_name }}">
+  <meta name="twitter:description" content="{{ video.recipe_summary|truncatechars:200 }}">
+  {% if video.thumbnail_url %}<meta property="og:image" content="{{ video.thumbnail_url }}"><meta name="twitter:image" content="{{ video.thumbnail_url }}">{% endif %}
+  <link rel="stylesheet" href="{% static 'catalog/watch.css' %}">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=TikTok+Sans:wght@400;500;600;700&amp;family=Noto+Sans+Bengali:wght@400;600&amp;family=Noto+Sans+Devanagari:wght@400;600&amp;display=swap">
+  <script src="{% static 'catalog/theme-bootstrap.js' %}"></script>
+  {% for css in vite.css %}<link rel="stylesheet" href="{{ css }}">{% endfor %}
+  {% for chunk in vite.imports %}<link rel="modulepreload" href="{{ chunk }}">{% endfor %}
+  {% if vite.dev %}
+  <script type="module">
+    import RefreshRuntime from '{{ vite.dev }}/@react-refresh';
+    RefreshRuntime.injectIntoGlobalHook(window);
+    window.$RefreshReg$ = () => {};
+    window.$RefreshSig$ = () => (type) => type;
+    window.__vite_plugin_react_preamble_installed__ = true;
+  </script>
+  <script type="module" src="{{ vite.dev }}/@vite/client"></script>
+  {% endif %}
+  <script type="module" src="{{ vite.entry }}"></script>
+</head>
+<body>
+  <a class="skip-link" href="#recipe">Skip to recipe</a>
+  <header class="site-header"><a href="/">Air Fryer Shorts</a></header>
+  <main class="page watch-page" id="recipe">
+    <a href="/" class="discover-link">Discover recipes</a>
+    <div id="watch-root" data-slug="{{ video.slug }}"></div>
+    <noscript><p>JavaScript enables the official player. You can watch the original on YouTube using the link below.</p></noscript>
+    <section id="recipe-details" class="recipe-details">
+      <h1 tabindex="-1">{{ video.recipe_name }}</h1>
+      {% if video.recipe_summary %}<p>{{ video.recipe_summary|linebreaksbr }}</p>{% endif %}
+      <p>{% if video.creator_name %}By {% if video.creator_url %}<a href="{{ video.creator_url }}">{{ video.creator_name }}</a>{% else %}{{ video.creator_name }}{% endif %} · {% endif %}<a href="{{ video.canonical_url }}">View original on YouTube</a></p>
+      <p>{{ video.diet_label }} · {% if video.cook_time_minutes %}Cooking time: {{ video.cook_time_minutes }} minutes{% else %}Cooking time unknown{% endif %}</p>
+      {% if video.availability == 'EMBED_BLOCKED' %}<p>Embedding is disabled by the creator.</p>{% elif video.availability == 'UNAVAILABLE' %}<p>The source may be private or removed.</p>{% elif video.availability == 'UNKNOWN' %}<p>Current source metadata is unavailable; playback may still work.</p>{% endif %}
+      {% if video.ingredients %}<h2>Manually curated ingredients</h2><p>{{ video.ingredients|join:", " }}</p>{% endif %}
+      {% if video.cuisines %}<h2>Cuisine</h2><p>{{ video.cuisines|join:", " }}</p>{% endif %}
+      {% if video.meal_types %}<h2>Meal type</h2><p>{{ video.meal_types|join:", " }}</p>{% endif %}
+    </section>
+  </main>
+  <footer class="site-footer">Manually curated recipes · Official YouTube playback</footer>
+</body>
+</html>

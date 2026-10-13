@@ -12,3 +12,18 @@ class PrivateAdminMiddleware:
             response["Referrer-Policy"] = "strict-origin-when-cross-origin"
             response["X-Robots-Tag"] = "noindex, nofollow"
         return response
+
+
+class PublicReadErrorMiddleware:
+    """Do not cache method errors or missing public routes outside normal view responses."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if response.status_code >= 400 and (
+            request.path.startswith("/api/v1/videos") or request.path.startswith("/shorts/")
+        ):
+            response["Cache-Control"] = "no-store"
+        return response

@@ -167,6 +167,24 @@ def read_source_metadata(video):
     return current
 
 
+def read_source_metadata_batch(video_ids):
+    """Use the same purge/read/deadline boundary without a query per feed card."""
+    videos = Video.objects.filter(pk__in=video_ids)
+    purge_expired_source_metadata(videos)
+    snapshots = {}
+    for current in videos.values("id", *SOURCE_FIELDS, "availability", "last_metadata_sync_at"):
+        stamp = current["last_metadata_sync_at"]
+        if stamp is None or stamp <= timezone.now() - RETENTION:
+            current = {
+                "id": current["id"],
+                **SOURCE_DEFAULTS,
+                "availability": Video.Availability.UNKNOWN,
+                "last_metadata_sync_at": stamp,
+            }
+        snapshots[current["id"]] = current
+    return snapshots
+
+
 def refresh_video(video_id, user=None):
     if user is not None:
         require_permission(user, "change_video")
