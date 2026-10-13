@@ -9,7 +9,7 @@ Run the existing development Compose stack from the repository root:
 
 ```powershell
 docker compose up -d
-bun --cwd frontend run dev
+bun run --cwd frontend dev
 ```
 
 Open `http://localhost:5173/`. Watch links pass through to Django. Direct watch links
@@ -21,7 +21,7 @@ setting empty and point `VITE_MANIFEST_PATH` at the build manifest.
 ## Built assets through Caddy
 
 ```powershell
-bun --cwd frontend run build
+bun run --cwd frontend build
 docker compose --project-name airfryerrecipe --env-file .env -f infra/compose.dev.yml -f infra/compose.preview.yml up -d
 ```
 
@@ -42,11 +42,15 @@ Phase 3 implementation was owner-authorized on 13 October 2026 while the Phase 2
 browser/playback/remote-CI evidence remains pending. This authorization does not
 mark Phase 2 complete.
 
-The owner subsequently selected local implementation only; HTTPS staging and
-monitor selection/exposure are deferred.
+The owner subsequently selected local implementation only, then explicitly moved
+restricted HTTPS staging and monitoring to Phase 9 final testing and deployment
+on 13 October 2026. They no longer block Phase 3. The preserved requirements are
+in `Tasks/PHASE-9-STAGING.md`; staging remains unimplemented and unverified.
 
-The candidate CSP runs report-only in this local preview. Browser playback,
-Referer/origin requests, CSP reports and error 153 still need actual browser checks.
+The candidate CSP runs report-only in this local preview. Browser verification
+commands and the distinction between mocked states and real provider playback
+are documented in `frontend/README.md`. Successful local checks do not establish
+an enforced staging policy or deployed HTTPS behavior.
 The approved staging hostname/host/access restrictions and error-monitor vendor,
 retention, redaction and alert delivery need decisions and verification before
 exposure. Do not deploy this development runserver/HTTP overlay as staging.

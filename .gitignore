@@ -41,6 +41,8 @@ htmlcov/
 .tox/
 .nox/
 coverage.xml
+test-results/
+playwright-report/
 *.cover
 *.py,cover
 
@@ -78,3 +80,4 @@ PRD.md
 Tasks/
 FINDINGS.md
 maintenance-status.json
+PHASE3-LOCAL.md
