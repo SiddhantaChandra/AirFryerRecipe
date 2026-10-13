@@ -1,0 +1,28 @@
+﻿:80 {
+	# The report-only policy is a candidate to verify in a real browser, not sign-off.
+	header {
+		Referrer-Policy strict-origin-when-cross-origin
+		Content-Security-Policy-Report-Only "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; frame-src https://www.youtube-nocookie.com; script-src 'self' https://www.youtube.com https://s.ytimg.com; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https://i.ytimg.com data:; connect-src 'self'"
+	}
+	@django path /api /api/* /django-admin /django-admin/* /shorts /shorts/* /healthz /healthz/* /static /static/*
+	handle @django {
+		reverse_proxy web:8000
+	}
+	handle /assets/* {
+		root * /srv/frontend
+		header Cache-Control "public, max-age=31536000, immutable" {
+			match status 2xx
+		}
+		file_server
+	}
+	handle {
+		root * /srv/frontend
+		header Cache-Control "no-store"
+		try_files {path} /index.html
+		file_server
+	}
+	handle_errors {
+		header Cache-Control "no-store"
+		respond "{err.status_text}" {err.status_code}
+	}
+}

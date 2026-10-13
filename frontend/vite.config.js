@@ -10,6 +10,8 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    strictPort: true,
+    cors: { origin: /^http:\/\/(localhost|127\.0\.0\.1):8000$/ },
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',
@@ -19,8 +21,12 @@ export default defineConfig({
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
+      '/shorts': { target: 'http://127.0.0.1:8000' },
+      '/django-admin': { target: 'http://127.0.0.1:8000' },
+      '/static': { target: 'http://127.0.0.1:8000' },
     },
   },
+  build: { manifest: true, rollupOptions: { input: { app: 'index.html', watch: 'src/main.jsx' } } },
   test: {
     globals: true,
     environment: 'jsdom',

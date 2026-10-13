@@ -1,0 +1,16 @@
+# Local built-mode integration only; no internet exposure or HTTPS staging claim.
+services:
+  web:
+    environment:
+      VITE_DEV_SERVER: ""
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,web
+  caddy:
+    image: caddy:2.10.2-alpine
+    ports:
+      - "127.0.0.1:8090:80"
+    volumes:
+      - ./Caddyfile.preview:/etc/caddy/Caddyfile:ro
+      - ../frontend/dist:/srv/frontend:ro
+    depends_on:
+      web:
+        condition: service_healthy

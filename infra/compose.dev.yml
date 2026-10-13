@@ -28,8 +28,11 @@ services:
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,web
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env or the environment}@db:5432/${POSTGRES_DB:-airfryer_db}
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      VITE_DEV_SERVER: ${VITE_DEV_SERVER:-http://localhost:5173}
+      VITE_MANIFEST_PATH: /frontend/dist/.vite/manifest.json
     volumes:
       - ../backend:/app
+      - ../frontend/dist:/frontend/dist:ro
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
