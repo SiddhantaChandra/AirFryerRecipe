@@ -18,7 +18,6 @@ export function YouTubePlayer({ video }) {
     iframe.title = 'Official YouTube recipe player'
     iframe.referrerPolicy = 'strict-origin-when-cross-origin'
     iframe.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'
-    iframe.allowFullscreen = true
     const params = new window.URLSearchParams({ enablejsapi: '1', playsinline: '1', origin: window.location.origin })
     iframe.src = `https://www.youtube-nocookie.com/embed/${video.external_id}?${params}`
     host.replaceChildren(iframe)

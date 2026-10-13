@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Share2, MoreHorizontal } from 'lucide-react'
 import { catalog } from '../lib/api'
@@ -26,7 +26,12 @@ export function ShareActions({ video }) {
   return <div className="watch-actions">
     <button onClick={share}><Share2 size={20} aria-hidden="true" />Share</button>
     <details ref={details} onToggle={() => { if (details.current.open) firstLink.current?.focus() }} onKeyDown={event => {
-      if (event.key === 'Escape') { details.current.open = false; trigger.current.focus() }
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        details.current.open = false
+        trigger.current.focus({ preventScroll: true })
+      }
     }}><summary ref={trigger}><MoreHorizontal size={20} aria-hidden="true" />More</summary>
       <div className="more-panel"><a ref={firstLink} href={video.canonical_url}>Original link</a><button onClick={copy}>Copy app link</button></div>
     </details>
@@ -38,10 +43,12 @@ export function Watch({ slug }) {
   const recipe = useQuery({ queryKey: ['video', slug], queryFn: ({ signal }) => catalog(`${encodeURIComponent(slug)}/`, signal) })
   const neighbors = useQuery({ queryKey: ['neighbors', slug], queryFn: ({ signal }) => catalog(`${encodeURIComponent(slug)}/neighbors/`, signal) })
   const [navigationError, setNavigationError] = useState('')
+  const [unavailable, setUnavailable] = useState(false)
+  const navigationId = useId()
   useEffect(() => {
     const content = document.getElementById('recipe-details')
-    if (content) content.hidden = recipe.error?.status === 404
-  }, [recipe.error])
+    if (content) content.hidden = unavailable || recipe.error?.status === 404
+  }, [recipe.error, unavailable])
   const navigating = useRef(false)
   async function navigate(direction) {
     if (navigating.current) return
@@ -50,7 +57,15 @@ export function Watch({ slug }) {
       const current = await catalog(`${encodeURIComponent(slug)}/neighbors/`)
       if (current[direction]) window.location.assign(`/shorts/${encodeURIComponent(current[direction].slug)}`)
       else setNavigationError(`No ${direction} recipe is available.`)
-    } catch (error) { setNavigationError(error.message) }
+    } catch (error) {
+      setNavigationError(error.message)
+      // Recheck the current recipe too: a stale page must lose its player/details
+      // after navigation discovers that an admin has hidden it.
+      if (error.status === 404) {
+        setUnavailable(true)
+        await recipe.refetch()
+      }
+    }
     finally { navigating.current = false }
   }
   const navigation = useRef(navigate)
@@ -69,13 +84,13 @@ export function Watch({ slug }) {
     return () => document.removeEventListener('keydown', key)
   }, [])
   if (recipe.isPending) return <p role="status">Loading player…</p>
-  if (recipe.isError) return <div role="alert"><p>{recipe.error.message}</p>{recipe.error.status !== 404 && <button onClick={() => recipe.refetch()}>Retry</button>}</div>
+  if (recipe.isError || unavailable) return <div role="alert"><p>{unavailable ? 'Recipe no longer available in the archive.' : recipe.error.message}</p>{!unavailable && recipe.error.status !== 404 && <button onClick={() => recipe.refetch()}>Retry</button>}</div>
   return <>
     <div className="watch-preferences"><ThemeControls /></div>
     <div className="watch-interactive"><YouTubePlayer key={recipe.data.id} video={recipe.data} /><ShareActions video={recipe.data} /></div>
     <nav className="watch-navigation" aria-label="Newest recipe navigation">
-      {['previous', 'next'].map(direction => <div key={direction}><button disabled={!neighbors.data?.[direction]} onClick={() => navigate(direction)}>{direction === 'previous' ? 'Previous' : 'Next'}</button>
-        {neighbors.isSuccess && !neighbors.data[direction] && <small>{direction === 'previous' ? 'Newest recipe' : 'Oldest recipe'}</small>}</div>)}
+      {['previous', 'next'].map(direction => <div key={direction}><button disabled={!neighbors.data?.[direction]} aria-describedby={neighbors.isSuccess && !neighbors.data[direction] ? `${navigationId}-${direction}` : undefined} onClick={() => navigate(direction)}>{direction === 'previous' ? 'Previous' : 'Next'}</button>
+        {neighbors.isSuccess && !neighbors.data[direction] && <small id={`${navigationId}-${direction}`}>{direction === 'previous' ? 'Newest recipe' : 'Oldest recipe'}</small>}</div>)}
     </nav>
     {neighbors.isError && <p role="alert">Navigation could not load. <button onClick={() => neighbors.refetch()}>Retry navigation</button></p>}
     <p role="status">{navigationError}</p>

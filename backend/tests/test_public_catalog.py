@@ -233,6 +233,13 @@ def test_public_head_and_denied_mutations(client, make_video):
     assert video.status == "PUBLISHED"
 
 
+def test_missing_api_route_does_not_cache_or_fall_back_to_html(client):
+    response = client.get("/api/v1/missing/")
+    assert response.status_code == 404
+    assert response["Cache-Control"] == "no-store"
+    assert not response.cookies
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("mode", ["development", "built"])
 def test_direct_watch_with_real_http_and_disposable_record(live_server, settings, make_video, mode):

@@ -12,7 +12,7 @@ export function RecipeCard({ video }) {
         : <span>Source image unavailable</span>}
     </div>
     <div className="card-copy">
-      <h2>{video.recipe_name}</h2>
+      <h2 title={video.recipe_name}>{video.recipe_name}</h2>
       <p className="source-label">{video.creator_name ? `${video.creator_name} · YouTube` : 'YouTube · Creator unavailable'}</p>
       <p className="card-meta"><span>{video.diet_label}</span><span>{video.cook_time_minutes ? `Cooking: ${video.cook_time_minutes} min` : 'Cooking time unknown'}</span></p>
       {tags.length > 0 && <p className="card-tags">{tags.map(tag => <span key={tag}>{tag}</span>)}</p>}

@@ -1,5 +1,5 @@
 import { StrictMode } from 'react'
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Discover, RecipeCard } from './Discover'
@@ -56,6 +56,13 @@ describe('Discovery states and honest card metadata', () => {
     const { container } = render(<RecipeCard video={{ ...video, thumbnail_url: 'https://i.ytimg.com/image.jpg' }} />)
     fireEvent.error(container.querySelector('img'))
     expect(screen.getByText('Source image unavailable')).toBeInTheDocument()
+  })
+
+  it('exposes the full card title and known recipe cooking time', () => {
+    render(<RecipeCard video={{ ...video, cook_time_minutes: 18, duration_seconds: 42, creator_name: 'Recipe creator' }} />)
+    expect(screen.getByRole('heading')).toHaveAttribute('title', video.recipe_name)
+    expect(screen.getByText('Cooking: 18 min')).toBeInTheDocument()
+    expect(screen.queryByText(/42/)).not.toBeInTheDocument()
   })
 })
 
@@ -121,9 +128,41 @@ describe('Official player lifetime and failures', () => {
     await Promise.resolve()
     expect(Player).not.toHaveBeenCalled()
   })
+
+  it('keeps only the newest source when navigation outruns the API loader', async () => {
+    let resolve
+    const pending = new Promise(done => { resolve = done })
+    loadYouTube.mockReturnValue(pending)
+    const Player = vi.fn(function () { return { destroy: vi.fn() } })
+    const { container, rerender } = render(<YouTubePlayer video={video} />)
+    rerender(<YouTubePlayer video={{ ...video, external_id: 'jNQXAC9IVRw' }} />)
+    rerender(<YouTubePlayer video={{ ...video, external_id: 'abcdefghijk' }} />)
+    await act(async () => resolve({ Player }))
+    expect(Player).toHaveBeenCalledOnce()
+    expect(container.querySelectorAll('iframe')).toHaveLength(1)
+    expect(container.querySelector('iframe').src).toContain('/abcdefghijk?')
+  })
+
+  it('recovers from player-service failure with a fresh iframe', async () => {
+    loadYouTube.mockRejectedValueOnce(new Error('network'))
+    const instances = provider()
+    render(<YouTubePlayer video={video} />)
+    expect(await screen.findByText(/The player could not load/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry player' }))
+    await waitFor(() => expect(instances).toHaveLength(1))
+    await act(async () => instances[0].config.events.onReady())
+    expect(screen.getByText(/Tap the official play button/)).toBeInTheDocument()
+  })
 })
 
 describe('Share and newest navigation', () => {
+  it('keeps loading player feedback while detail is pending', () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    queryRender(<Watch slug={video.slug} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Loading player')
+    expect(screen.queryByRole('button', { name: 'Share' })).not.toBeInTheDocument()
+  })
+
   it('uses clipboard fallback and gives useful feedback', async () => {
     const writeText = vi.fn().mockResolvedValue()
     Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: { writeText } })
@@ -147,6 +186,8 @@ describe('Share and newest navigation', () => {
     queryRender(<Watch slug={video.slug} />)
     expect(await screen.findByText('Newest recipe')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Previous' })).toHaveAccessibleDescription('Newest recipe')
+    expect(screen.getByRole('button', { name: 'Next' })).toHaveAccessibleDescription('Oldest recipe')
     const input = document.createElement('input')
     document.body.append(input)
     fireEvent.keyDown(input, { key: 'ArrowRight' })
@@ -155,6 +196,43 @@ describe('Share and newest navigation', () => {
     expect(await screen.findByText('No next recipe is available.')).toBeInTheDocument()
     expect(fetch).toHaveBeenCalledTimes(3)
     input.remove()
+  })
+
+  it('focuses the first More action and restores the trigger on Escape', async () => {
+    const { container } = render(<ShareActions video={video} />)
+    const details = container.querySelector('details')
+    details.open = true
+    fireEvent(details, new window.Event('toggle'))
+    expect(screen.getByRole('link', { name: 'Original link' })).toHaveFocus()
+    fireEvent.keyDown(details, { key: 'Escape' })
+    expect(details.open).toBe(false)
+    expect(container.querySelector('summary')).toHaveFocus()
+  })
+
+  it('offers retry for detail/network and neighbor failures', async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: false, status: 503 })
+    vi.stubGlobal('fetch', fetch)
+    queryRender(<Watch slug={video.slug} />)
+    expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    fetch.mockImplementation(url => Promise.resolve(url.includes('neighbors') ? { ok: false, status: 503 } : { ok: true, json: async () => ({ ...video, availability: 'UNAVAILABLE' }) }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('button', { name: 'Retry navigation' })).toBeInTheDocument()
+  })
+
+  it('removes player and server metadata when neighbor recheck finds a hidden current recipe', async () => {
+    const content = document.createElement('section')
+    content.id = 'recipe-details'
+    document.body.append(content)
+    let hidden = false
+    vi.stubGlobal('fetch', vi.fn(url => Promise.resolve(hidden ? { ok: false, status: url.includes('neighbors') ? 404 : 503 } : { ok: true, json: async () => url.includes('neighbors') ? { previous: null, next: { slug: 'older' } } : { ...video, availability: 'UNAVAILABLE' } })))
+    queryRender(<Watch slug={video.slug} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled())
+    hidden = true
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Recipe no longer available')
+    expect(screen.queryByRole('link', { name: 'View original on YouTube' })).not.toBeInTheDocument()
+    expect(content.hidden).toBe(true)
+    content.remove()
   })
 
   it('uses native share and does not report cancellation as failure', async () => {

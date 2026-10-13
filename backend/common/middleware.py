@@ -23,7 +23,7 @@ class PublicReadErrorMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
         if response.status_code >= 400 and (
-            request.path.startswith("/api/v1/videos") or request.path.startswith("/shorts/")
+            request.path.startswith("/api/") or request.path.startswith("/shorts/")
         ):
             response["Cache-Control"] = "no-store"
         return response
