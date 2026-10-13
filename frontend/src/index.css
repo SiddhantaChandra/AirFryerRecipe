@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./styles/tokens.css";
+@import "./styles/catalog.css";
 
 @theme {
   --color-app-bg: var(--color-bg);

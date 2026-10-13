@@ -8,24 +8,12 @@
     <meta name="description" content="A curated YouTube Shorts recipe archive for air fryer meals and snacks." />
     
     <!-- Pre-paint theme bootstrap to prevent theme flash (DESIGNS.md §3.2) -->
-    <script>
-      (function() {
-        try {
-          const stored = localStorage.getItem('airfryer_theme') || 'system';
-          let theme = stored;
-          if (stored === 'system') {
-            theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-          }
-          document.documentElement.setAttribute('data-theme', theme);
-          document.documentElement.style.colorScheme = theme;
-        } catch (e) {}
-      })();
-    </script>
+    <script vite-ignore src="/static/catalog/theme-bootstrap.js"></script>
 
     <!-- Font fallbacks per DESIGNS.md §4.1 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=TikTok+Sans:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
   </head>
   <body>
     <div id="root"></div>
