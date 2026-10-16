@@ -22,24 +22,27 @@ function queryRender(element) {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); delete window.navigator.clipboard; delete window.navigator.share })
 
 describe('Discovery states and honest card metadata', () => {
-  it('reserves loading geometry, then renders empty state and no future controls', async () => {
+  it('reserves loading geometry, then renders empty state and search controls', async () => {
     let resolve
     vi.stubGlobal('fetch', vi.fn(() => new Promise(done => { resolve = done })))
     queryRender(<Discover />)
     expect(screen.getByLabelText('Loading recipes')).toBeInTheDocument()
     resolve({ ok: true, json: async () => ({ results: [], count: 0 }) })
     expect(await screen.findByRole('heading', { name: 'The archive is getting started' })).toBeInTheDocument()
-    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('searchbox', { name: 'Search recipes' })).toBeInTheDocument()
     expect(screen.queryByText('Load more')).not.toBeInTheDocument()
   })
 
   it('shows retry after failure and recovers to published cards', async () => {
-    const fetch = vi.fn().mockResolvedValueOnce({ ok: false, status: 503 })
-      .mockResolvedValue({ ok: true, json: async () => ({ results: [video], count: 1 }) })
+    let failed = true
+    const fetch = vi.fn(url => Promise.resolve(url.includes('/filters/')
+      ? { ok: true, json: async () => ({ count: 1 }) }
+      : failed ? { ok: false, status: 503 } : { ok: true, json: async () => ({ results: [video], count: 1 }) }))
     vi.stubGlobal('fetch', fetch)
     queryRender(<Discover />)
     expect(await screen.findByRole('alert')).toHaveTextContent('Recipes could not load')
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    failed = false
+    fireEvent.click(screen.getByRole('button', { name: 'Retry recipes' }))
     expect(await screen.findByRole('link', { name: /Crispy potatoes/ })).toHaveAttribute('href', '/shorts/crispy-potatoes')
     expect(fetch.mock.calls[0][1].credentials).toBe('omit')
   })

@@ -159,9 +159,9 @@ def test_hide_invalidates_feed_detail_html_and_neighbors(client, make_video):
 
 
 @pytest.mark.parametrize(
-    "query", ["q=potato", "sort=newest", "limit=2000", "diet=VEG", "cursor=abc"]
+    "query", ["sort=oldest", "limit=2000", "diet=INVALID", "cursor=abc"]
 )
-def test_phase_four_query_parameters_are_rejected(client, make_video, query):
+def test_invalid_query_parameters_are_rejected(client, make_video, query):
     video = make_video()
     for url in (
         reverse("public_feed"),

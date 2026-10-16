@@ -26,7 +26,7 @@ for (const width of [320, 375, 390, 768, 1024, 1280, 1440]) {
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
     await expect(page.locator('.recipe-card')).toHaveCount(6)
     await noOverflow(page)
-    const columns = width < 360 ? 1 : width < 768 ? 2 : width < 1024 ? 3 : width < 1440 ? 4 : 5
+    const columns = width < 360 ? 1 : width < 768 ? 2 : width < 1440 ? 3 : 4
     expect(await page.locator('.recipe-grid').evaluate(el => window.getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(columns)
     for (const theme of ['Dark', 'Light']) {
       await page.getByRole('button', { name: `${theme} theme` }).click()
@@ -54,7 +54,7 @@ test('discovery keyboard focus, 200% text reflow, error retry and empty state', 
   await page.goto('/')
   await expect(page.getByRole('alert')).toContainText('Recipes could not load')
   failed = false
-  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await page.getByRole('button', { name: 'Retry recipes', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'The archive is getting started' })).toBeVisible()
   await page.evaluate(() => { document.documentElement.style.fontSize = '200%' })
   await noOverflow(page)
@@ -113,7 +113,7 @@ test('real local route headers and no-JavaScript watch document', async ({ brows
   await expect(page.getByRole('link', { name: 'View original on YouTube' })).toBeVisible()
   await expect(page.locator('noscript')).toBeVisible()
   await expect(page.locator('iframe')).toHaveCount(0)
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/shorts\/phase3-qa-/)
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new RegExp(`/shorts/${slug}$`))
   await context.close()
 })
 
@@ -139,9 +139,11 @@ test('watch blocked, unavailable and error 153 states are distinct (provider moc
 })
 
 for (const width of [320, 375, 390, 768, 1024, 1280, 1440]) {
-  test(`watch ${width}px: real HTML, mocked player, menu and accessible boundaries`, async ({ page }) => {
+  test(`watch ${width}px: real HTML, mocked player, menu and accessible boundaries`, async ({ page, request }) => {
     test.skip(!slug, 'Set E2E_RECIPE_SLUG to a disposable published local recipe.')
     await page.setViewportSize({ width, height: 900 })
+    const video = await (await request.get(`/api/v1/videos/${slug}/`)).json()
+    await page.route(`**/api/v1/videos/${slug}/`, route => route.fulfill({ json: { ...video, availability: 'UNKNOWN' } }))
     await page.route('**/api/v1/videos/*/neighbors/', route => route.fulfill({ json: { previous: null, next: null } }))
     await page.route('https://www.youtube-nocookie.com/embed/**', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Labeled player mock</title><button>Official controls mock</button>' }))
     await page.route('https://www.youtube.com/iframe_api', route => route.fulfill({ contentType: 'text/javascript', body: `window.YT = { Player: function(frame, config) { this.destroy = () => frame.remove(); this.pauseVideo = () => {}; setTimeout(() => config.events.onReady(), 0); } }; window.onYouTubeIframeAPIReady();` }))

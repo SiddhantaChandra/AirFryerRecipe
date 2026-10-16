@@ -1,19 +1,21 @@
-"""Non-personalized, publication-checked Phase 3 catalog reads."""
+"""Non-personalized, publication-checked catalog reads."""
 
 import hashlib
 
 from django.db.models import Q
-from django.http import HttpResponseNotModified
+from django.http import HttpResponseNotModified, QueryDict
 from django.utils.http import parse_etags
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 
+from .discovery import PAGE_SIZE, facets, matching, recipe_page, scalar, validate
 from .models import EditorialPolicy, Video
 from .services import read_source_metadata, read_source_metadata_batch
 
-FEED_LIMIT = 24
+FEED_LIMIT = PAGE_SIZE
 
 
 def published():
@@ -76,11 +78,11 @@ def reject_query(request):
 @authentication_classes([])
 @permission_classes([AllowAny])
 def feed(request):
-    error = reject_query(request)
-    if error is not None:
-        return conditional(request, error)
-    videos = published()
-    page = list(videos[:FEED_LIMIT])
+    try:
+        query = validate(request.GET, extra=("cursor",))
+        page, count, next_cursor = recipe_page(query, scalar(request.GET, "cursor", limit=2048))
+    except ValidationError as error:
+        return conditional(request, Response(error.detail, status=400))
     sources = read_source_metadata_batch([video.pk for video in page])
     policy = EditorialPolicy.objects.filter(pk=1).values_list("explanation", flat=True).first()
     return conditional(
@@ -88,7 +90,9 @@ def feed(request):
         Response(
             {
                 "results": [public_video(video, sources[video.pk]) for video in page],
-                "count": videos.count(),
+                "count": count,
+                "next_cursor": next_cursor,
+                "query": query,
                 "limit": FEED_LIMIT,
                 "diet_policy": policy or "",
             }
@@ -107,8 +111,10 @@ def detail(request, slug):
     return conditional(request, error if error is not None else Response(public_video(video)))
 
 
-def neighbor_data(video):
-    videos = Video.objects.filter(status=Video.Status.PUBLISHED).only("id", "slug", "created_at")
+def neighbor_data(video, query=None):
+    videos = matching(query or validate(QueryDict())).only("id", "slug", "created_at")
+    if not videos.filter(pk=video.pk).exists():
+        return {"previous": None, "next": None, "in_context": False}
     newer = (
         videos.filter(
             Q(created_at__gt=video.created_at) | Q(created_at=video.created_at, id__gt=video.id)
@@ -133,5 +139,20 @@ def neighbors(request, slug):
     video = published().filter(slug=slug).first()
     if video is None:
         return conditional(request, Response({"detail": "Recipe not found."}, status=404))
-    error = reject_query(request)
-    return conditional(request, error if error is not None else Response(neighbor_data(video)))
+    try:
+        data = neighbor_data(video, validate(request.GET))
+    except ValidationError as error:
+        return conditional(request, Response(error.detail, status=400))
+    return conditional(request, Response(data))
+
+
+@api_view(["GET", "HEAD"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def filters(request):
+    try:
+        query = validate(request.GET, extra=("ingredient_q", "ingredient_cursor"))
+        data = facets(query, request.GET)
+    except ValidationError as error:
+        return conditional(request, Response(error.detail, status=400))
+    return conditional(request, Response(data))

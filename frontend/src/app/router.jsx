@@ -1,12 +1,12 @@
 ﻿import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { ThemeControls } from '../components/ThemeControls'
-import { Discover } from '../features/Discover'
+import { Discover, RecipeSearch } from '../features/Discover'
 
 function Home() {
   return <div className="app-shell">
     <a className="skip-link" href="#content">Skip to content</a>
-    <header className="site-header"><a className="brand" href="/">Air Fryer Shorts</a><ThemeControls /></header>
-    <main id="content" className="page"><Discover /></main>
+    <header className="site-header"><a className="brand" href="/">Air Fryer Shorts</a><div id="header-search"><RecipeSearch /></div><ThemeControls /></header>
+    <main id="content" className="page"><Discover showSearch={false} /></main>
     <footer className="site-footer">Manually curated recipes · Official YouTube playback</footer>
   </div>
 }

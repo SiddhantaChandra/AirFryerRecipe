@@ -4,6 +4,7 @@ import { Share2, MoreHorizontal } from 'lucide-react'
 import { catalog } from '../lib/api'
 import { YouTubePlayer } from '../components/YouTubePlayer'
 import { ThemeControls } from '../components/ThemeControls'
+import { discoverURL, parseQuery, queryString, watchOrigin, watchURL, writeRecord } from '../lib/discovery'
 
 export function ShareActions({ video }) {
   const [feedback, setFeedback] = useState('')
@@ -40,22 +41,49 @@ export function ShareActions({ video }) {
 }
 
 export function Watch({ slug }) {
+  const serverQuery = document.getElementById('watch-context')
+  const query = serverQuery ? JSON.parse(serverQuery.textContent) : parseQuery(window.location.search)
+  const context = queryString(query)
+  const [origin] = useState(watchOrigin)
+  const neighborPath = `${encodeURIComponent(slug)}/neighbors/${context ? `?${context}` : ''}`
   const recipe = useQuery({ queryKey: ['video', slug], queryFn: ({ signal }) => catalog(`${encodeURIComponent(slug)}/`, signal) })
-  const neighbors = useQuery({ queryKey: ['neighbors', slug], queryFn: ({ signal }) => catalog(`${encodeURIComponent(slug)}/neighbors/`, signal) })
+  const neighbors = useQuery({ queryKey: ['neighbors', slug, context], queryFn: ({ signal }) => catalog(neighborPath, signal) })
   const [navigationError, setNavigationError] = useState('')
   const [unavailable, setUnavailable] = useState(false)
+  const missing = unavailable || recipe.error?.status === 404 || neighbors.error?.status === 404
   const navigationId = useId()
+  function backToResults(event) {
+    if (origin && event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) { event.preventDefault(); history.go(-origin.steps) }
+  }
   useEffect(() => {
     const content = document.getElementById('recipe-details')
-    if (content) content.hidden = unavailable || recipe.error?.status === 404
-  }, [recipe.error, unavailable])
+    if (content) {
+      content.hidden = missing
+      if (missing) content.replaceChildren()
+    }
+    if (missing) {
+      document.title = 'Recipe unavailable · Air Fryer Shorts'
+      document.querySelectorAll('meta[property^="og:"],meta[name^="twitter:"],meta[name="description"]').forEach(meta => meta.remove())
+    }
+  }, [missing])
+  const refetch = useRef(null)
+  refetch.current = () => { recipe.refetch(); neighbors.refetch() }
+  useEffect(() => {
+    const revalidate = () => refetch.current()
+    window.addEventListener('pageshow', revalidate)
+    return () => window.removeEventListener('pageshow', revalidate)
+  }, [])
   const navigating = useRef(false)
   async function navigate(direction) {
     if (navigating.current) return
     navigating.current = true
     try {
-      const current = await catalog(`${encodeURIComponent(slug)}/neighbors/`)
-      if (current[direction]) window.location.assign(`/shorts/${encodeURIComponent(current[direction].slug)}`)
+      const current = await catalog(neighborPath)
+      if (current[direction]) {
+        const target = watchURL(current[direction].slug, query)
+        if (origin) writeRecord('archive-watch-pending', { ...origin, target, steps: origin.steps + 1 })
+        window.location.assign(target)
+      }
       else setNavigationError(`No ${direction} recipe is available.`)
     } catch (error) {
       setNavigationError(error.message)
@@ -84,13 +112,15 @@ export function Watch({ slug }) {
     return () => document.removeEventListener('keydown', key)
   }, [])
   if (recipe.isPending) return <p role="status">Loading player…</p>
-  if (recipe.isError || unavailable) return <div role="alert"><p>{unavailable ? 'Recipe no longer available in the archive.' : recipe.error.message}</p>{!unavailable && recipe.error.status !== 404 && <button onClick={() => recipe.refetch()}>Retry</button>}</div>
+  if (recipe.isError || missing) return <div role="alert">{missing && <h1>Recipe unavailable</h1>}<p>{missing ? 'Recipe no longer available in the archive.' : recipe.error.message}</p>{!missing && <button onClick={() => recipe.refetch()}>Retry</button>}<a href={discoverURL(query)} onClick={backToResults}>Back to results</a></div>
   return <>
+    {(context || origin) && <a className="back-results" href={discoverURL(query)} onClick={backToResults}>Back to results</a>}
     <div className="watch-preferences"><ThemeControls /></div>
     <div className="watch-interactive"><YouTubePlayer key={recipe.data.id} video={recipe.data} /><ShareActions video={recipe.data} /></div>
-    <nav className="watch-navigation" aria-label="Newest recipe navigation">
+    {neighbors.data?.in_context === false && <p role="status">This recipe no longer matches your search or filters. Its content remains available. Return to results to choose another recipe.</p>}
+    <nav className="watch-navigation" aria-label={context ? 'Filtered recipe navigation' : 'Newest recipe navigation'}>
       {['previous', 'next'].map(direction => <div key={direction}><button disabled={!neighbors.data?.[direction]} aria-describedby={neighbors.isSuccess && !neighbors.data[direction] ? `${navigationId}-${direction}` : undefined} onClick={() => navigate(direction)}>{direction === 'previous' ? 'Previous' : 'Next'}</button>
-        {neighbors.isSuccess && !neighbors.data[direction] && <small id={`${navigationId}-${direction}`}>{direction === 'previous' ? 'Newest recipe' : 'Oldest recipe'}</small>}</div>)}
+        {neighbors.isSuccess && !neighbors.data[direction] && <small id={`${navigationId}-${direction}`}>{neighbors.data.in_context === false ? 'Recipe is outside these results' : context ? `No ${direction} matching recipe` : direction === 'previous' ? 'Newest recipe' : 'Oldest recipe'}</small>}</div>)}
     </nav>
     {neighbors.isError && <p role="alert">Navigation could not load. <button onClick={() => neighbors.refetch()}>Retry navigation</button></p>}
     <p role="status">{navigationError}</p>

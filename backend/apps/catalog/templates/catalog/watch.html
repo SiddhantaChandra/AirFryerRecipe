@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>{{ video.recipe_name }} · Air Fryer Shorts</title>
   <meta name="description" content="{{ video.recipe_summary|truncatechars:200 }}">
   <link rel="canonical" href="{{ canonical }}">
@@ -37,8 +38,9 @@
   <a class="skip-link" href="#recipe">Skip to recipe</a>
   <header class="site-header"><a href="/">Air Fryer Shorts</a></header>
   <main class="page watch-page" id="recipe">
-    <a href="/" class="discover-link">Discover recipes</a>
+    <a href="{{ discovery_url }}" class="discover-link">Discover recipes</a>
     <div id="watch-root" data-slug="{{ video.slug }}"></div>
+    {{ discovery_query|json_script:"watch-context" }}
     <noscript><p>JavaScript enables the official player. You can watch the original on YouTube using the link below.</p></noscript>
     <section id="recipe-details" class="recipe-details">
       <h1 tabindex="-1">{{ video.recipe_name }}</h1>

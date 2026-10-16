@@ -39,3 +39,38 @@ No source cache/export/history or backup infrastructure is added in Phase 2. Adm
 ## Verification limits
 
 Backend tests mock YouTube; PostgreSQL enforces constraints, identity guards and concurrency. Browser screenshots with mocked iframe documents prove application layout/workflow, not live player functionality. Privacy-enhanced embeds preserve `strict-origin-when-cross-origin`, pass the current origin, and show an error-153 configuration explanation. Validate real source playback and deployed headers at their phase gates. This admin retains stock Django Admin shell/theme behavior; it does not implement the SPA theme or redesign stock widgets.
+
+## Public discovery reads
+
+`GET /api/v1/videos/` accepts `q`, repeated `diet`, `ingredient`, `cuisine`, `meal_type`,
+`difficulty`, and `language`, positive whole-minute `max_time`, and `sort=newest`.
+Search requires every word in the curated title or summary. Facets combine with AND;
+multiselects use OR except ingredients, which require every selected canonical ingredient.
+Taxonomy aliases resolve to canonical slugs. Vegetarian includes Vegan; difficulty groups
+are `easy` (1–2), `medium` (3), and `hard` (4–5). Active time/difficulty/language filters
+exclude unknown values. Source duration and retained provider text never substitute for
+recipe cooking time or curated search text.
+
+Feed responses include `results`, total matching `count`, normalized `query`, `limit: 24`,
+`next_cursor`, and `diet_policy`. Pass the opaque `next_cursor` as `cursor` with the same
+query for another page. Ordering is descending creation timestamp then UUID; malformed
+or mismatched cursors return 400. Unsupported parameters and optional sorts are rejected.
+
+`GET /api/v1/filters/` accepts the discovery query plus `ingredient_q` and
+`ingredient_cursor`. It returns `{value, label, count}` choices for each facet, 24 canonical
+ingredient choices, `ingredient_next_cursor`, and `selected_ingredients` retained outside
+the searched page. Ordinary facets exclude their own selected filter from counts;
+ingredient candidate counts retain all selected ingredients and add the candidate.
+Ingredient-option search matches manually curated aliases without changing recipe results.
+
+`GET /api/v1/videos/{slug}/neighbors/` accepts discovery context without a cursor.
+Published recipes outside that context return null directions and `in_context: false`.
+Hidden/missing current recipes return 404. `/shorts/{slug}` validates and normalizes the
+same context while keeping its canonical/OG/share URL clean. Discovery stores only
+history restoration metadata (query, cursor-page depth, scroll and card identity) in
+session storage; it rebuilds current pages before restoring scroll/focus.
+
+These endpoints are anonymous and non-personalized, with cookie-free publication checks,
+source-expiry enforcement, and representation-based ETags. Public 200/304 responses use
+`public, max-age=0, must-revalidate`; errors use no-store. No schema/index changes,
+fuzzy search, external search service, accounts, or classifier are required.

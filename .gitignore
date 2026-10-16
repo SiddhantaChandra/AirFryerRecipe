@@ -16,6 +16,9 @@ downloads/
 eggs/
 .eggs/
 lib/
+!frontend/src/lib/
+frontend/src/lib/*
+!frontend/src/lib/*.js
 lib64/
 parts/
 sdist/
@@ -43,6 +46,7 @@ htmlcov/
 coverage.xml
 test-results/
 playwright-report/
+.playwright-mcp/
 *.cover
 *.py,cover
 
