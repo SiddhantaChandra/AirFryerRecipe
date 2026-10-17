@@ -45,6 +45,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Third party
     "rest_framework",
+    "allauth",
+    "allauth.account",
+    "allauth.headless",
     # Project apps
     "apps.accounts",
     "apps.taxonomy",
@@ -59,6 +62,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -88,6 +92,41 @@ DATABASES = {"default": env.db("DATABASE_URL")}
 
 # Custom User Model (ARCHITECTURE §3.1)
 AUTH_USER_MODEL = "accounts.User"
+
+# Browser-only accounts; urls.py explicitly registers the supported operations.
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+ACCOUNT_ADAPTER = "apps.accounts.adapters.AccountAdapter"
+HEADLESS_ADAPTER = "apps.accounts.adapters.HeadlessAdapter"
+HEADLESS_ONLY = True
+HEADLESS_CLIENTS = ("browser",)
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*"]
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_EMAIL_NOTIFICATIONS = False
+ACCOUNT_LOGIN_BY_CODE_ENABLED = False
+ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = False
+ACCOUNT_RATE_LIMITS = {
+    "signup": "20/m/ip",
+    "login": "30/m/ip",
+    "login_failed": "10/m/ip,5/5m/key",
+    "change_password": "5/m/user",
+    "delete_account": "5/m/user",
+    "admin_login": "30/m/ip,5/5m/key",
+}
+# Local limits use Django's process-local cache. Shared-worker/proxy validation
+# stays in Phase 9; this phase introduces no cache server.
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_FAILURE_VIEW = "apps.accounts.views.csrf_failure"
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

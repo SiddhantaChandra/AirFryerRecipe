@@ -7,11 +7,34 @@ class PrivateAdminMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-        if request.path.startswith("/django-admin/"):
+        if request.path.startswith(
+            ("/django-admin", "/_allauth", "/accounts")
+        ) or request.path.rstrip("/") in {
+            "/api/v1/me",
+            "/api/v1/auth/bootstrap",
+            "/login",
+            "/signup",
+            "/settings",
+        }:
             patch_cache_control(response, private=True, no_store=True, no_cache=True, max_age=0)
             response["Referrer-Policy"] = "strict-origin-when-cross-origin"
             response["X-Robots-Tag"] = "noindex, nofollow"
+            if response.status_code == 429 and not response.has_header("Retry-After"):
+                response["Retry-After"] = "60"
         return response
+
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        if request.path == "/django-admin/login/" and request.method == "POST":
+            from allauth.core import ratelimit
+            from django.http import JsonResponse
+
+            identity = request.POST.get("username", "").strip().lower()[:254]
+            if not ratelimit.consume(request, action="admin_login", key=identity):
+                response = JsonResponse(
+                    {"detail": "Too many attempts. Please retry later."}, status=429
+                )
+                response["Retry-After"] = "300"
+                return response
 
 
 class PublicReadErrorMiddleware:

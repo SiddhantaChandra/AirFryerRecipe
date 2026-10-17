@@ -2,14 +2,19 @@ import uuid
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from django.db.models.functions import Lower, Trim
 from django.utils import timezone
 
 
 class UserManager(BaseUserManager):
+    @classmethod
+    def normalize_email(cls, email):
+        return (email or "").strip().lower()
+
     def create_user(self, email, password=None, **extra_fields):
+        email = self.normalize_email(email)
         if not email:
             raise ValueError("The Email field must be set.")
-        email = self.normalize_email(email)
         extra_fields.setdefault("is_active", True)
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
@@ -59,6 +64,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         db_table = "accounts_user"
         verbose_name = "User"
         verbose_name_plural = "Users"
+        constraints = [
+            models.UniqueConstraint(Lower(Trim("email")), name="accounts_user_email_identity"),
+        ]
 
     def __str__(self):
         return self.email

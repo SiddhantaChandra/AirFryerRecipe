@@ -4,6 +4,7 @@ import { Share2, MoreHorizontal } from 'lucide-react'
 import { catalog } from '../lib/api'
 import { YouTubePlayer } from '../components/YouTubePlayer'
 import { ThemeControls } from '../components/ThemeControls'
+import { AccountActions } from '../components/AccountActions'
 import { discoverURL, parseQuery, queryString, watchOrigin, watchURL, writeRecord } from '../lib/discovery'
 
 export function ShareActions({ video }) {
@@ -115,7 +116,7 @@ export function Watch({ slug }) {
   if (recipe.isError || missing) return <div role="alert">{missing && <h1>Recipe unavailable</h1>}<p>{missing ? 'Recipe no longer available in the archive.' : recipe.error.message}</p>{!missing && <button onClick={() => recipe.refetch()}>Retry</button>}<a href={discoverURL(query)} onClick={backToResults}>Back to results</a></div>
   return <>
     {(context || origin) && <a className="back-results" href={discoverURL(query)} onClick={backToResults}>Back to results</a>}
-    <div className="watch-preferences"><ThemeControls /></div>
+    <div className="watch-preferences"><AccountActions /><ThemeControls /></div>
     <div className="watch-interactive"><YouTubePlayer key={recipe.data.id} video={recipe.data} /><ShareActions video={recipe.data} /></div>
     {neighbors.data?.in_context === false && <p role="status">This recipe no longer matches your search or filters. Its content remains available. Return to results to choose another recipe.</p>}
     <nav className="watch-navigation" aria-label={context ? 'Filtered recipe navigation' : 'Newest recipe navigation'}>
