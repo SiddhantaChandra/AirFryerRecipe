@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.taxonomy",
     "apps.catalog",
+    "apps.cookbooks",
 ]
 
 MIDDLEWARE = [
@@ -92,6 +93,9 @@ DATABASES = {"default": env.db("DATABASE_URL")}
 
 # Custom User Model (ARCHITECTURE §3.1)
 AUTH_USER_MODEL = "accounts.User"
+
+COOKBOOK_OWNER_LIMIT = env.int("COOKBOOK_OWNER_LIMIT", default=10)
+COOKBOOK_ITEM_LIMIT = env.int("COOKBOOK_ITEM_LIMIT", default=200)
 
 # Browser-only accounts; urls.py explicitly registers the supported operations.
 AUTHENTICATION_BACKENDS = [

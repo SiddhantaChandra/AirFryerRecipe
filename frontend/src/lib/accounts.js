@@ -18,6 +18,7 @@ export function safeReturn(value) {
     if (
       path !== '/' &&
       path !== '/settings' &&
+      !/^\/cookbooks(?:\/[a-fA-F0-9-]{36})?\/?$/.test(path) &&
       !/^\/shorts\/[a-zA-Z0-9_-]+\/?$/.test(path)
     )
       return '/'
@@ -52,9 +53,12 @@ export function createAccountClient(onExpiry) {
   const pending = new Set()
   async function request(
     path,
-    { method = 'GET', body, allowAnonymous = false } = {},
+    { method = 'GET', body, allowAnonymous = false, signal } = {},
   ) {
     const controller = new window.AbortController()
+    const abort = () => controller.abort()
+    if (signal?.aborted) controller.abort()
+    signal?.addEventListener('abort', abort, { once: true })
     pending.add(controller)
     try {
       const response = await fetch(path, {
@@ -82,7 +86,7 @@ export function createAccountClient(onExpiry) {
               : response.status === 401
                 ? 'Your session ended. Please log in again.'
                 : response.status >= 500
-                  ? 'The account service could not respond. Please retry.'
+                  ? 'The service could not respond. Please retry.'
                   : 'Please check the form and try again.',
         )
         error.status = response.status
@@ -99,6 +103,7 @@ export function createAccountClient(onExpiry) {
       throw error
     } finally {
       pending.delete(controller)
+      signal?.removeEventListener('abort', abort)
     }
   }
   return {

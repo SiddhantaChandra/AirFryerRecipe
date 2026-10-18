@@ -135,7 +135,11 @@ def recipe_page(query, cursor):
         videos = videos.filter(
             Q(created_at__lt=timestamp) | Q(created_at=timestamp, id__lt=identity)
         )
-    page = list(videos.prefetch_related("cuisines", "meal_types", "ingredients")[: PAGE_SIZE + 1])
+    page = list(
+        videos.annotate(like_count=Count("likes")).prefetch_related(
+            "cuisines", "meal_types", "ingredients"
+        )[: PAGE_SIZE + 1]
+    )
     continuation = None
     if len(page) > PAGE_SIZE:
         page = page[:PAGE_SIZE]

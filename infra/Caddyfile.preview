@@ -17,8 +17,9 @@
 	}
 	handle {
 		root * /srv/frontend
-		@accountDocument path /login /login/ /signup /signup/ /settings /settings/
+		@accountDocument path /login /login/ /signup /signup/ /settings /settings/ /cookbooks /cookbooks/*
 		header @accountDocument X-Robots-Tag "noindex, nofollow"
+		header @accountDocument >Cache-Control "private, no-store"
 		header Cache-Control "no-store"
 		try_files {path} /index.html
 		file_server

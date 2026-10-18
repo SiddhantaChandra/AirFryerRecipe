@@ -11,7 +11,7 @@ export default defineConfig({
       name: 'private-account-documents',
       configureServer(server) {
         server.middlewares.use((request, response, next) => {
-          if (/^\/(login|signup|settings)\/?(?:\?|$)/.test(request.url)) {
+          if (/^\/(?:login|signup|settings|cookbooks(?:\/[^?]*)?)\/?(?:\?|$)/.test(request.url)) {
             const writeHead = response.writeHead
             response.writeHead = function (...args) {
               // Vite's HTML middleware otherwise replaces this with no-cache.

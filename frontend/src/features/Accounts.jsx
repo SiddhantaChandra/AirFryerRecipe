@@ -57,6 +57,13 @@ export function FormFeedback({ error, success }) {
 const passwordHelp =
   'Use at least 8 characters. Avoid common passwords, entirely numeric passwords, and passwords similar to your email or name.'
 
+function AccountReturn({ destination }) {
+  useEffect(() => {
+    if (destination.startsWith('/shorts/')) window.location.replace(destination)
+  }, [destination])
+  return destination.startsWith('/shorts/') ? <p role="status">Returning to recipe…</p> : <Navigate to={destination} replace />
+}
+
 export function AccountEntry({ signup = false }) {
   const auth = useAuth()
   const location = useLocation()
@@ -72,7 +79,7 @@ export function AccountEntry({ signup = false }) {
   }, [signup])
   if (auth.status === 'loading' || auth.status === 'loggingOut')
     return <p role="status">Checking account…</p>
-  if (auth.user) return <Navigate to={destination} replace />
+  if (auth.user) return <AccountReturn destination={destination} />
   if (auth.status === 'error')
     return (
       <>
@@ -99,7 +106,7 @@ export function AccountEntry({ signup = false }) {
     try {
       if (await auth.authenticate(signup ? 'signup' : 'login', data)) {
         formRef.current?.reset()
-        navigate(destination, { replace: true })
+        if (!destination.startsWith('/shorts/')) navigate(destination, { replace: true })
       }
     } catch (failure) {
       if (failure.name !== 'AbortError') setError(failure)

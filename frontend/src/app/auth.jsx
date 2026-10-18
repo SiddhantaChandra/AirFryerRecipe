@@ -109,8 +109,11 @@ export function AuthProvider({ children }) {
     const show = (event) => {
       if (event.persisted) restore({ mask: true })
     }
-    const focus = (event) => {
-      if (event.target === window) restore()
+    const focus = async (event) => {
+      if (event.target === window) {
+        await restore()
+        queries.invalidateQueries({ predicate: (query) => query.meta?.private === true || ['video', 'videos'].includes(query.queryKey[0]) })
+      }
     }
     const hide = () =>
       flushSync(() => {
@@ -133,7 +136,7 @@ export function AuthProvider({ children }) {
       channel.current?.close()
       channel.current = null
     }
-  }, [client, restore, clearPrivate])
+  }, [client, restore, clearPrivate, queries])
 
   async function authenticate(operation, body) {
     clearPrivate()
@@ -263,6 +266,7 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider
       value={{
         ...state,
+        client,
         themeSave,
         restore,
         authenticate,

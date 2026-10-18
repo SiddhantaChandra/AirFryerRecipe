@@ -45,6 +45,7 @@ export function AccountActions() {
     <nav className="account-actions" aria-label="Account">
       {auth.user ? (
         <>
+          <a href="/cookbooks">My Cookbooks</a>
           <a href="/settings">Settings</a>
           <button disabled={pending} onClick={logout}>
             {pending ? 'Logging out…' : 'Logout'}

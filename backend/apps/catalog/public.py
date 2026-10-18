@@ -2,7 +2,7 @@
 
 import hashlib
 
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import HttpResponseNotModified, QueryDict
 from django.utils.http import parse_etags
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -19,8 +19,10 @@ FEED_LIMIT = PAGE_SIZE
 
 
 def published():
-    return Video.objects.filter(status=Video.Status.PUBLISHED).prefetch_related(
-        "cuisines", "meal_types", "ingredients"
+    return (
+        Video.objects.filter(status=Video.Status.PUBLISHED)
+        .annotate(like_count=Count("likes"))
+        .prefetch_related("cuisines", "meal_types", "ingredients")
     )
 
 
@@ -35,6 +37,7 @@ def public_video(video, source=None):
         "diet_label": video.get_diet_display(),
         "cook_time_minutes": video.cook_time_minutes,
         "difficulty": video.difficulty,
+        "like_count": video.like_count if hasattr(video, "like_count") else video.likes.count(),
         "language": video.language or None,
         "cuisines": [tag.name for tag in video.cuisines.all()],
         "meal_types": [tag.name for tag in video.meal_types.all()],

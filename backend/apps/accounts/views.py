@@ -38,11 +38,11 @@ def csrf_failure(request, reason=""):
     return error("Security check failed. Refresh the page and try again.", 403)
 
 
-def read_json(request):
+def read_json(request, *, max_bytes=16384):
     if request.content_type != "application/json":
         raise ValueError("Send a JSON object.")
-    if int(request.META.get("CONTENT_LENGTH") or 0) > 16384 or len(request.body) > 16384:
-        raise ValueError("Account request is too large.")
+    if int(request.META.get("CONTENT_LENGTH") or 0) > max_bytes or len(request.body) > max_bytes:
+        raise ValueError("Request is too large.")
     try:
         data = json.loads(request.body or b"{}")
     except (ValueError, UnicodeDecodeError):

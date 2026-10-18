@@ -5,9 +5,10 @@ import { catalog } from '../lib/api'
 import { YouTubePlayer } from '../components/YouTubePlayer'
 import { ThemeControls } from '../components/ThemeControls'
 import { AccountActions } from '../components/AccountActions'
+import { RecipeActivity } from './RecipeActivity'
 import { discoverURL, parseQuery, queryString, watchOrigin, watchURL, writeRecord } from '../lib/discovery'
 
-export function ShareActions({ video }) {
+export function ShareActions({ video, children }) {
   const [feedback, setFeedback] = useState('')
   const details = useRef(null)
   const trigger = useRef(null)
@@ -26,6 +27,7 @@ export function ShareActions({ video }) {
     } catch (error) { if (error.name !== 'AbortError') await copy() }
   }
   return <div className="watch-actions">
+    {children}
     <button onClick={share}><Share2 size={20} aria-hidden="true" />Share</button>
     <details ref={details} onToggle={() => { if (details.current.open) firstLink.current?.focus() }} onKeyDown={event => {
       if (event.key === 'Escape') {
@@ -117,7 +119,7 @@ export function Watch({ slug }) {
   return <>
     {(context || origin) && <a className="back-results" href={discoverURL(query)} onClick={backToResults}>Back to results</a>}
     <div className="watch-preferences"><AccountActions /><ThemeControls /></div>
-    <div className="watch-interactive"><YouTubePlayer key={recipe.data.id} video={recipe.data} /><ShareActions video={recipe.data} /></div>
+    <div className="watch-interactive"><YouTubePlayer key={recipe.data.id} video={recipe.data} /><ShareActions video={recipe.data}><RecipeActivity video={recipe.data} /></ShareActions></div>
     {neighbors.data?.in_context === false && <p role="status">This recipe no longer matches your search or filters. Its content remains available. Return to results to choose another recipe.</p>}
     <nav className="watch-navigation" aria-label={context ? 'Filtered recipe navigation' : 'Newest recipe navigation'}>
       {['previous', 'next'].map(direction => <div key={direction}><button disabled={!neighbors.data?.[direction]} aria-describedby={neighbors.isSuccess && !neighbors.data[direction] ? `${navigationId}-${direction}` : undefined} onClick={() => navigate(direction)}>{direction === 'previous' ? 'Previous' : 'Next'}</button>

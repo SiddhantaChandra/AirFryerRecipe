@@ -7,18 +7,42 @@ class PrivateAdminMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-        if request.path.startswith(
-            ("/django-admin", "/_allauth", "/accounts")
-        ) or request.path.rstrip("/") in {
-            "/api/v1/me",
-            "/api/v1/auth/bootstrap",
-            "/login",
-            "/signup",
-            "/settings",
-        }:
+        if (
+            request.path.startswith(
+                (
+                    "/django-admin",
+                    "/_allauth",
+                    "/accounts",
+                    "/api/v1/me/",
+                    "/api/v1/cookbooks",
+                    "/cookbooks",
+                )
+            )
+            or (
+                request.path.startswith("/api/v1/videos/")
+                and request.path.rstrip("/").endswith("/like")
+            )
+            or request.path.rstrip("/")
+            in {
+                "/api/v1/me",
+                "/api/v1/auth/bootstrap",
+                "/login",
+                "/signup",
+                "/settings",
+            }
+        ):
             patch_cache_control(response, private=True, no_store=True, no_cache=True, max_age=0)
             response["Referrer-Policy"] = "strict-origin-when-cross-origin"
             response["X-Robots-Tag"] = "noindex, nofollow"
+            if request.path.startswith("/api/") and response.status_code in {404, 405}:
+                from django.http import JsonResponse
+
+                if not response.get("Content-Type", "").startswith("application/json"):
+                    headers = dict(response.headers)
+                    response = JsonResponse({"detail": "Not found."}, status=response.status_code)
+                    for key, value in headers.items():
+                        if key.lower() not in {"content-type", "content-length"}:
+                            response[key] = value
             if response.status_code == 429 and not response.has_header("Retry-After"):
                 response["Retry-After"] = "60"
         return response

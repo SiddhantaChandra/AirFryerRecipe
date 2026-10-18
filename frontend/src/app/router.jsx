@@ -4,6 +4,7 @@ import { ThemeControls } from '../components/ThemeControls'
 import { Discover, RecipeSearch } from '../features/Discover'
 import { AccountActions } from '../components/AccountActions'
 import { AccountEntry, Settings } from '../features/Accounts'
+import { CookbookRoute } from '../features/Cookbooks'
 
 function Shell() {
   const location = useLocation()
@@ -17,7 +18,7 @@ function Shell() {
   return <div className="app-shell">
     <a className="skip-link" href="#content">Skip to content</a>
     <header className="site-header"><a className="brand" href="/">Air Fryer Shorts</a>{location.pathname === '/' && <div id="header-search"><RecipeSearch /></div>}<div className="header-actions"><AccountActions /><ThemeControls /></div></header>
-    <main ref={main} tabIndex={-1} id="content" className="page">{location.state?.accountDeleted && <p role="status" className="success-feedback">Your account has been deleted.</p>}<Outlet /></main>
+    <main ref={main} tabIndex={-1} id="content" className="page">{location.state?.notice && <p role="status">{location.state.notice}</p>}{location.state?.accountDeleted && <p role="status" className="success-feedback">Your account has been deleted.</p>}<Outlet /></main>
     <footer className="site-footer">Manually curated recipes · Official YouTube playback</footer>
   </div>
 }
@@ -28,6 +29,8 @@ const router = createBrowserRouter([
     { path: '/login', element: <AccountEntry /> },
     { path: '/signup', element: <AccountEntry signup /> },
     { path: '/settings', element: <Settings /> },
+    { path: '/cookbooks', element: <CookbookRoute /> },
+    { path: '/cookbooks/:id', element: <CookbookRoute detail /> },
   ] },
   { path: '*', element: <main className="page"><h1>Page not found</h1><a href="/">Discover recipes</a></main> },
 ])

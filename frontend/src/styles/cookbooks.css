@@ -1,0 +1,213 @@
+.cookbooks-page {
+  margin-block: 1rem 3rem;
+  overflow-wrap: anywhere;
+}
+.cookbook-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-block: 1.5rem;
+}
+.cookbook-heading > div:first-child {
+  min-width: 0;
+  flex: 1 1 18rem;
+}
+.cookbook-heading p,
+.cookbook-limit {
+  margin-block: 0.75rem;
+  color: var(--color-text-muted);
+}
+.cookbook-description {
+  white-space: pre-wrap;
+  max-width: 70ch;
+}
+.cookbook-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+.cookbook-card {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+  text-decoration: none;
+}
+.cookbook-card > div:last-child {
+  padding: 1rem;
+}
+.cookbook-card h2,
+.unavailable-recipe h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.cookbook-card p {
+  margin-top: 0.5rem;
+}
+.cookbook-cover {
+  aspect-ratio: 16/9;
+  background: var(--color-surface);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.cookbook-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cookbook-form {
+  display: grid;
+  gap: 1rem;
+  margin-block: 1rem;
+}
+.cookbook-form label {
+  display: grid;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+.cookbook-form input,
+.cookbook-form textarea {
+  min-width: 0;
+  width: 100%;
+  padding: 0.75rem;
+  min-height: 44px;
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-text-subtle);
+  border-radius: 10px;
+}
+.cookbook-form textarea {
+  resize: vertical;
+}
+.activity-dialog h2 {
+  font-size: 1.375rem;
+  font-weight: 650;
+  margin-bottom: 1rem;
+}
+.activity-dialog {
+  padding: min(1.5rem, 5vw);
+  overflow-wrap: anywhere;
+}
+.activity-dialog button,
+.activity-dialog legend {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.activity-dialog .cookbook-form {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.membership-choice > span {
+  min-width: 0;
+}
+.activity-dialog > button:last-child {
+  margin-top: 1rem;
+}
+.activity-dialog fieldset {
+  border: 1px solid var(--color-border-strong);
+  padding: 0.75rem;
+  border-radius: 10px;
+  min-width: 0;
+}
+.membership-choice {
+  display: flex;
+  align-items: start;
+  gap: 0.75rem;
+  padding-block: 0.75rem;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+}
+.membership-choice input {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  accent-color: var(--color-accent);
+}
+.membership-choice small {
+  display: block;
+  color: var(--color-text-muted);
+}
+.watch-actions > button {
+  flex-wrap: wrap;
+}
+.watch-actions > button small {
+  flex-basis: 100%;
+  text-align: left;
+}
+.watch-actions .form-feedback {
+  flex-basis: 100%;
+  max-width: 32ch;
+  padding: 0.5rem;
+}
+.cookbook-items {
+  list-style: none;
+  display: grid;
+  gap: 1.5rem;
+  margin-block: 1.5rem;
+  padding: 0;
+}
+.cookbook-items > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.saved-recipe {
+  min-width: 0;
+}
+.saved-recipe .recipe-card {
+  display: grid;
+  grid-template-columns: minmax(6rem, 28%) minmax(0, 1fr);
+  border: 0;
+  border-radius: 0;
+  height: 100%;
+}
+.saved-recipe .card-media {
+  aspect-ratio: 9/12;
+}
+.saved-recipe .recipe-card h2 {
+  display: block;
+  overflow: visible;
+}
+.saved-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 1rem;
+  background: var(--color-surface);
+}
+.saved-controls > span {
+  flex-basis: 100%;
+}
+.saved-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.drag-handle {
+  touch-action: none;
+  cursor: grab;
+}
+.archive-unavailable,
+.unavailable-recipe {
+  padding: 1rem;
+}
+.unavailable-recipe .cookbook-cover {
+  max-width: 12rem;
+  margin-bottom: 1rem;
+}
+.unavailable-recipe p {
+  margin-block: 0.75rem;
+}
+@media (min-width: 768px) {
+  .cookbook-items > li {
+    grid-template-columns: minmax(0, 1fr) 17rem;
+  }
+}
